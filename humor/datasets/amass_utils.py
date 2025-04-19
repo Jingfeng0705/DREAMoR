@@ -12,8 +12,8 @@ SPLITS = ['train', 'val', 'test', 'custom']
 SPLIT_BY = [ 
              'single',   # the data path is a single .npz file. Don't split: train and test are same
              'sequence', # the data paths are directories of subjects. Collate and split by sequence.
-             'subject',  # the data paths are directories of datasets. Collate and split by subject.
-             'dataset'   # a single data path to the amass data root is given. The predefined datasets will be used for each split.
+            #  'subject',  # the data paths are directories of datasets. Collate and split by subject.
+            #  'dataset'   # a single data path to the amass data root is given. The predefined datasets will be used for each split.
             ]
 
 ROT_REPS = ['mat', 'aa', '6d']

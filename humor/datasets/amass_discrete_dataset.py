@@ -140,73 +140,14 @@ class AmassDiscreteDataset(Dataset):
 
             sequence_paths.append(npz_file)
             sequence_info.append(seq_info)
-        elif self.split_by in ['sequence', 'subject', 'dataset']:
+        elif self.split_by in ['sequence']:
             # collect directories of sub-datasets to use
-            dataset_dirs = []
-            if self.split_by == 'dataset':
-                amass_root = self.data_roots[0]
-                split_datasets = TRAIN_DATASETS
-                if self.split == 'val':
-                    split_datasets = VAL_DATASETS
-                elif self.split == 'test':
-                    split_datasets = TEST_DATASETS
-                elif self.split == 'custom':
-                    split_datasets = self.custom_split
-                dataset_dirs = [os.path.join(amass_root, dataset_name) for dataset_name in split_datasets]
-                dataset_dirs = [f for f in dataset_dirs if os.path.exists(f)]
-                print('Found the following datasets for this split:')
-                print(dataset_dirs)
-            elif self.split_by == 'subject':
-                # expand any regex
-                for dataset_dir in self.data_roots:
-                    cur_list = glob.glob(dataset_dir)
-                    dataset_dirs += cur_list
-        
-            dataset_dirs = sorted(dataset_dirs)
-
-            # print(dataset_dirs)
-
-            # collect directories of subjects to use for this split
             subject_dirs = []
-            if self.split_by in ['dataset', 'subject']:
-                for data_dir in dataset_dirs:
-                    # get all subjects
-                    all_subject_dirs = [os.path.join(data_dir, f) for f in sorted(os.listdir(data_dir)) if f[0] != '.']
-                    all_subject_dirs = [f for f in all_subject_dirs if os.path.isdir(f)]
-                    if self.split_by == 'dataset':
-                        # use all of them
-                        subject_dirs += all_subject_dirs
-                    elif self.split_by == 'subject':
-                        if self.splits_path is not None:
-                            Logger.log('Note: Using specified subject splits rather than manually splitting!')
-                            # load the desired split
-                            split_subject_dirs = None
-                            with open(os.path.join(self.splits_path, self.split + '.txt'), 'r') as f:
-                                split_subject_dirs = f.readlines()
-                                split_subject_dirs = [f.replace('\n', '') for f in split_subject_dirs]
-                            split_subject_dirs = [os.path.join(data_dir, f) for f in split_subject_dirs]
-                            # make sure we actually have these subjects
-                            valid_subj = [subj_dir in all_subject_dirs for subj_dir in split_subject_dirs]
-                            if False in valid_subj:
-                                print('Could not find the some specified split data!')
-                                exit()
-                        else:
-                            # only use the current split fraction
-                            num_subj = len(all_subject_dirs)
-                            train_end_idx = int(self.train_frac*num_subj)
-                            val_end_idx = train_end_idx + int(self.val_frac*num_subj)
-                            split_subject_dirs = all_subject_dirs[:train_end_idx]
-                            if self.split == 'val':
-                                split_subject_dirs = all_subject_dirs[train_end_idx:val_end_idx]
-                            elif self.split == 'test':
-                                split_subject_dirs = all_subject_dirs[val_end_idx:]
-                        
-                        subject_dirs += split_subject_dirs
-            elif self.split_by == 'sequence':
-                # expand any regex
-                for subject_dir in self.data_roots:
-                    cur_list = glob.glob(subject_dir)
-                    subject_dirs += cur_list
+            for root, _, files in os.walk(self.data_roots):
+                for file in files:
+                    if file.endswith('.npz'):
+                        subject_dirs.append(root)
+                        break
 
             subject_dirs = sorted(subject_dirs)
 
@@ -217,30 +158,15 @@ class AmassDiscreteDataset(Dataset):
                 all_seq_files = sorted(glob.glob(os.path.join(cur_subj_dir, '*.npz')))
                 split_seq_files = all_seq_files
                 if self.split_by == 'sequence':
-                    if self.splits_path is not None:
-                        Logger.log('Note: Using specified sequence splits rather than manually splitting!')
-                        # load the desired split
-                        split_seq_files = None
-                        with open(os.path.join(self.splits_path, self.split + '.txt'), 'r') as f:
-                            split_seq_files = f.readlines()
-                            split_seq_files = [f.replace('\n', '') for f in split_seq_files]
-                        split_seq_files = [os.path.join(cur_subj_dir, f) for f in split_seq_files]
-                        print(split_seq_files)
-                        # make sure we actually have these sequences
-                        valid_seq = [seq_dir in all_seq_files for seq_dir in split_seq_files]
-                        if False in valid_seq:
-                            print('Could not find the some specified split data!')
-                            exit()
-                    else:
-                        # only take split fracion
-                        num_seqs = len(all_seq_files)
-                        train_end_idx = int(self.train_frac*num_seqs)
-                        val_end_idx = train_end_idx + int(self.val_frac*num_seqs)
-                        split_seq_files = all_seq_files[:train_end_idx]
-                        if self.split == 'val':
-                            split_seq_files = all_seq_files[train_end_idx:val_end_idx]
-                        elif self.split == 'test':
-                            split_seq_files = all_seq_files[val_end_idx:]
+                    # only take split fracion
+                    num_seqs = len(all_seq_files)
+                    train_end_idx = int(self.train_frac*num_seqs)
+                    val_end_idx = train_end_idx + int(self.val_frac*num_seqs)
+                    split_seq_files = all_seq_files[:train_end_idx]
+                    if self.split == 'val':
+                        split_seq_files = all_seq_files[train_end_idx:val_end_idx]
+                    elif self.split == 'test':
+                        split_seq_files = all_seq_files[val_end_idx:]
 
                 # get seq info
                 split_seq_info = [self.parse_sequence_info(f) for f in split_seq_files]
