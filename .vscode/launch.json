@@ -1,0 +1,25 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python Debugger: Current File with Arguments",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "args": "${command:pickArgs}"
+        },
+        {
+            "name": "Python Debugger: Train HuMoR",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "e:/workspace/Motion/humor/humor/train/train_humor.py",
+            "console": "integratedTerminal",
+            "args": ["@./configs/train_humor.cfg"],
+            "pythonPath": "E:/newProgramFiles/tool/anaconda/envs/CS280/python.exe"
+        }
+    ]
+}
