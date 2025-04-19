@@ -168,7 +168,8 @@ class HumorModel(nn.Module):
         self.output_data_dim = sum(self.output_dim_list)
 
         self.latent_size = latent_size
-        past_data_dim = self.steps_in * self.input_data_dim
+        past_data_dim = self.steps_in * self.input_data_dim # previous step pose dim
+        t_data_dim = self.steps_out * self.input_data_dim # current step pose dim, normally the same as previous step data dim
 
 
         # ----------------------------------- Diffusion Model -------------------------------------------
@@ -188,16 +189,15 @@ class HumorModel(nn.Module):
         # posterior encoder (given past and future, predict latent transition distribution)
         # print('Using posterior architecture: %s' % (self.posterior_arch))
         # if self.posterior_arch == 'mlp':
-        #     layer_list = [past_data_dim + t_data_dim, 1024, 1024, 1024, 1024, self.latent_size*2]
+        #     layer_list = [past_data_dim + t_data_dim, 1024, 1024, 1024, 1024, self.latent_size*2] # latent_size*2 for mean and std 
         #     self.encoder = MLP(layers=layer_list, # mu and sigma output
         #                        nonlinearity=nn.ReLU,
         #                        use_gn=True
         #                    )
         
         # New encoder
-        delta_input_dim = past_data_dim # input dim = dim of difference = dim of past data = dim of final pose
         layer_list = [self.encoder_cfg['hidden_size']] * (self.encoder_cfg['num_layers'] - 1)
-        layer_list = [delta_input_dim] + layer_list + [self.latent_size]
+        layer_list = [past_data_dim + t_data_dim] + layer_list + [self.latent_size]
         self.encoder = MLP(layers=layer_list, # mu and sigma output
                             nonlinearity=nn.ReLU,
                             use_gn=True
@@ -401,63 +401,37 @@ class HumorModel(nn.Module):
         past_in = x_past.reshape((B, -1))
         t_in = x_t.reshape((B, -1))
         
-        x_pred_dict = self.single_step(past_in-t_in) # we pass in the difference
+        x_pred_dict = self.single_step(past_in, t_in) # we pass in the difference, and the current gt pose
 
         return x_pred_dict
 
 
-    def single_step(self, delta_x):
+    def single_step(self, past_in, t_in):
         '''
         single step that computes both prior and posterior for training. Samples from posterior
         '''
-        B = delta_x.size(0)
+        B = past_in.size(0)
         # ground truth z_t
-        z_t = self.encoder(delta_x) # B * latent_size
+        encoder_in = torch.cat([past_in, t_in], axis=1)
+        z = self.encoder(encoder_in) # B * latent_size
 
-        noise = torch.randn_like(z_t) # B * latent_size
-        model_kwargs = dict(y=delta_x) # pass in the condition
+        noise = torch.randn_like(z) # B * latent_size
+        model_kwargs = dict(y=past_in) # pass in the condition
         
-        time = t = torch.randint(0, self.diffusion.num_timesteps, (B,))
+        time = torch.randint(0, self.diffusion.num_timesteps, (B,))
         # Discuss 2: calculate loss in latent space? Then how to train the decoder? Calculate two losses and backprop twice?
         # z_t_hat = self.diffusion.training_losses(self.diffusion_model, z_t, t_in, model_kwargs)
-        z_t_noise = self.diffusion.q_sample(z_t, time, noise=noise)
-        z_t_hat = self.diffusion_model(z_t_noise, time, **model_kwargs)
+        z_noise = self.diffusion.q_sample(z, time, noise=noise)
+        z_hat = self.diffusion_model(z_noise, time, **model_kwargs)
     
         # decode to get next step
-        decoder_out = self.decode(z_t_hat)
+        decoder_out = self.decode(z_hat, past_in)
         decoder_out = decoder_out.reshape((B, self.steps_out, -1)) # B x steps_out x D_out
 
-        # Discuss 3: how to handle dimension here? Currently unknown input and output dimension
-        # # split output predictions and transform out rotations to matrices
-        # x_pred_dict = self.split_output(decoder_out)
+        # split output predictions and transform out rotations to matrices
+        x_pred_dict = self.split_output(decoder_out)
 
-        # x_pred_dict['posterior_distrib'] = (qm, qv)
-        # x_pred_dict['prior_distrib'] = (pm, pv)
-
-        return decoder_out
-
-
-    def prior(self, past_in):
-        '''
-        Encodes the posterior distribution using the past and future states.
-
-        Input:
-        - past_in (B x steps_in*D)
-        '''
-        prior_out = self.prior_net(past_in)
-        mean = prior_out[:,:self.latent_size]
-        logvar = prior_out[:,self.latent_size:]
-        var = torch.exp(logvar)
-        return mean, var
-
-
-    def rsample(self, mu, var):
-        '''
-        Return gaussian sample of (mu, var) using reparameterization trick.
-        '''
-        eps = torch.randn_like(mu)
-        z = mu + eps*torch.sqrt(var)
-        return z
+        return x_pred_dict
 
 
     def decode(self, z, past_in):
@@ -803,6 +777,8 @@ class HumorModel(nn.Module):
         return new_pad_list
 
 
+    # ------------------------------------ Eval and Test Time Optimization Related Methods ---------------------------------
+
     def roll_out(self, x_past, init_input_dict, num_steps, use_mean=False, 
                     z_seq=None, return_prior=False, gender=None, betas=None, return_z=False,
                     canonicalize_input=False,
@@ -1038,7 +1014,7 @@ class HumorModel(nn.Module):
             return pred_seq_out
 
 
-    def sample_step(self, past_in, t_in=None, use_mean=False, z=None, return_prior=False, return_z=False):
+    def sample_step(self, past_in, t_in=None, use_mean=False, z=None, return_z=False):
         '''
         Given past, samples next future state by sampling from prior or posterior and decoding.
         If z (B x D) is not None, uses the given z instead of sampling from posterior or prior
@@ -1047,34 +1023,16 @@ class HumorModel(nn.Module):
         - decoder_out : (B x steps_out x D) output of the decoder for the immediate next step
         '''
         B = past_in.size(0)
+        noise = torch.randn((B, self.latent_size)) # B * latent_size
+        model_kwargs = dict(y=past_in) # pass in the condition
 
-        pm, pv = None, None
-        if t_in is not None:
-            # use past and future to encode latent transition
-            pm, pv = self.posterior(past_in, t_in)
-        else:
-            # prior
-            if self.use_conditional_prior:
-                # predict prior based on past
-                pm, pv = self.prior(past_in)
-            else:
-                # use standard normal
-                pm, pv = torch.zeros((B, self.latent_size)).to(past_in), torch.ones((B, self.latent_size)).to(past_in)
-
-        # sample from distrib or use mean
-        if z is None:
-            if not use_mean:
-                z = self.rsample(pm, pv)
-            else:
-                z = pm # NOTE: use mean
+        # TODO: One step cfg-free guidance sampling
 
         # decode to get next step
         decoder_out = self.decode(z, past_in)
         decoder_out = decoder_out.reshape((B, self.steps_out, -1)) # B x steps_out x D_out
 
         out_dict = {'decoder_out' : decoder_out}
-        if return_prior:
-            out_dict['prior'] = (pm, pv)
         if return_z:
             out_dict['z'] = z
         
