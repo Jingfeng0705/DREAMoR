@@ -11,6 +11,7 @@ from utils.transforms import rotation_matrix_to_angle_axis
 from body_model.body_model import BodyModel
 from datasets.amass_discrete_dataset import AmassDiscreteDataset
 from body_model.utils import SMPLH_PATH, SMPL_JOINTS
+from fitting.fitting_utils import resize_points
 
 class AMASSFitDataset(Dataset):
     '''
