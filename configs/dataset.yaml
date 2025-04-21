@@ -1,0 +1,9 @@
+data_path: "../datasets/AMASS/amass_processed"
+split_by: "sequence"
+sample_num_frames: 50
+data_steps_in: 1
+data_steps_out: 1
+data_rot_rep: "mat"
+data_return_config: "smpl+joints+contacts"
+batch_size: 1
+smplh_path: "./body_models/smplh"

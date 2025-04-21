@@ -343,4 +343,4 @@ def viz_results(body_pred, body_gt, fps, viz_out_dir=None, base_name=None, conta
             shutil.rmtree(comparison_out_path)
 
 # avoid cyclic dependency
-from viz.mesh_viewer import MeshViewer
+from humor.viz.mesh_viewer import MeshViewer
