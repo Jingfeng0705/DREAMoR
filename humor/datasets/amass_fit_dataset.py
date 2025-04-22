@@ -46,7 +46,7 @@ class AMASSFitDataset(Dataset):
         if split_by == 'dataset' and custom_split is not None:
             split_str = 'custom'
         self.amass_dataset = AmassDiscreteDataset(split=split_str,
-                                                  data_paths=[data_path],
+                                                  data_paths=data_path, # CHANGED FOR TESTS, ORIGINAL is data_paths=[data_path]
                                                   split_by=split_by,
                                                   sample_num_frames=seq_len - 1, # global seq returns + 1
                                                   step_frames_in=1,
