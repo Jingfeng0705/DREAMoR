@@ -143,6 +143,7 @@ class AmassDiscreteDataset(Dataset):
         elif self.split_by in ['sequence']:
             # collect directories of sub-datasets to use
             subject_dirs = []
+            
             for root, _, files in os.walk(self.data_roots):
                 for file in files:
                     if file.endswith('.npz'):

@@ -413,7 +413,7 @@ class MeshViewer(object):
                                       [start_loc[0], start_loc[1]-tile_width, 0.0],
                                       [start_loc[0]+tile_width, start_loc[1]-tile_width, 0.0],
                                       [start_loc[0]+tile_width, start_loc[1], 0.0]])
-                cur_faces = np.array([[0, 1, 3], [1, 2, 3]], dtype=np.int)
+                cur_faces = np.array([[0, 1, 3], [1, 2, 3]], dtype=int)
                 cur_faces += 4 * (i*num_cols + j) # the number of previously added verts
                 use_color0 = (i % 2 == 0 and j % 2 == 0) or (i % 2 == 1 and j % 2 == 1)
                 cur_color = color0 if use_color0 else color1
