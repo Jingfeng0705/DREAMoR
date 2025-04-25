@@ -1,3 +1,137 @@
+## DiffuMoR: Training with Google Colab
+
+
+
+### 1. Prepare Your Data (First-Time Setup)
+
+Before training, get dataset and bodymodels.
+
+- [Datasets](https://drive.google.com/drive/folders/1If5GDVV0UunvTh3mo8gXnJoDk4fsIS7F?usp=drive_link)
+- [Body_models](https://drive.google.com/drive/folders/1XhbNDX4Q0s5V2172lgB8_Pptnk97DkJS?usp=drive_link)
+
+Your directory structure should look like this:
+
+```
+My Drive/
+└── DiffuMoR/
+    ├── body_models/      # body models SMPLH and VPoser
+    ├── datasets/         # Datasets
+    └── out/              # Output directory (for checkpoints, logs, etc.)
+```
+
+> `body_models/` and `datasets/` folders are shared folders.
+
+---
+
+### 2. Set Up GitHub Token for Private Repos
+
+To clone a **private GitHub repo** from Colab, you’ll need to use a **Personal Access Token (PAT)**.
+
+#### How to Generate a GitHub Token:
+
+1. Go to [GitHub Token Generation (Classic)](https://github.com/settings/tokens/new?type=classic)
+2. Choose a name, expiration date
+3. Under scopes, check:
+
+   ```
+   ✅ repo
+   ```
+
+4. Click **Generate token**, and copy it immediately (it will only be shown once)
+
+#### ✅ Store Token as a Colab Secret:
+
+In Colab, store the token securely like this:
+
+```python
+from google.colab import userdata
+userdata.set_secret("github_clone", "<your_token_here>")
+```
+
+> Now, Colab can retrieve the token securely using `userdata.get("github_clone")`.
+
+---
+
+### 3. Open the Notebook (via GitHub Import)
+
+1. Go to [Google Colab](https://colab.research.google.com/)
+2. Click the **GitHub** tab
+3. Search for our humor repo
+4. Select the repository and the correct **branch**
+5. Open the notebook: `train.ipynb`
+
+---
+
+### 4. Start Training
+
+1. In the opened notebook, uncomment the first two cells:
+2. Run those cells to install all dependencies
+3. After installation, Colab may prompt you to **Restart Runtime** — accept then
+4. Then, run the rest of the notebook to begin training
+
+---
+
+### 5. Choose a Training Config
+
+Use `.yaml` files to configure the training process. A config specifies:
+
+- The model to use
+- The dataset
+- Loss functions
+
+We now only need to change model.
+
+---
+
+### Recommended Starting Point
+
+Start with the default Colab-friendly config:
+
+```yaml
+configs/colab_train_testmodel.yaml
+```
+
+This configuration is tuned for Colab, with small batch sizes and Google Drive-compatible paths.
+
+---
+
+### Tips
+
+- Output checkpoints and logs are saved in: `My Drive/DiffuMoR/out/`
+- To modify more config settings, refer to `humor/utils/config_new.py`
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+---
+# Original README:
+
 # HuMoR: 3D Human Motion Model for Robust Pose Estimation (ICCV 2021)
 This is the official implementation for the ICCV 2021 paper. For more information, see the [project webpage](https://geometry.stanford.edu/projects/humor/).
 

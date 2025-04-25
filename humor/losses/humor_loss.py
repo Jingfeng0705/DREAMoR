@@ -120,33 +120,35 @@ class HumorLoss(nn.Module):
         # KL divergence
         #
         # No prior and posteriot, so no KL loss
-        # if self.kl_loss_weight > 0.0:
-        #     qm, qv = pred_dict['posterior_distrib']
-        #     pm, pv = pred_dict['prior_distrib']
-        #     kl_loss = self.kl_normal(qm, qv, pm, pv)
-        #     kl_stat_loss = kl_loss.mean()
-        #     kl_loss = kl_stat_loss
-        #     # print(kl_loss.size())
-        #     stats_dict['kl_loss'] = kl_stat_loss
-        #     anneal_weight = 1.0
-        #     if self.use_kl_anneal or self.use_kl_cycle:
-        #         anneal_epoch = cur_epoch
-        #         anneal_start = self.kl_loss_anneal_start
-        #         anneal_end = self.kl_loss_anneal_end
-        #         if self.use_kl_cycle:
-        #             anneal_epoch = cur_epoch % self.kl_loss_cycle_len
-        #             anneal_start = 0
-        #             anneal_end = self.kl_loss_cycle_len // 2 # optimize full weight for second half of cycle
-        #         if anneal_epoch >= anneal_start:
-        #             anneal_weight = (anneal_epoch - anneal_start) / (anneal_end - anneal_start)
-        #         else:
-        #             anneal_weight = 0.0
-        #         anneal_weight = 1.0 if anneal_weight > 1.0 else anneal_weight
+        
+        #NOTE: set `kl_loss=0` in config to disable KL loss
+        if self.kl_loss_weight > 0.0:
+            qm, qv = pred_dict['posterior_distrib']
+            pm, pv = pred_dict['prior_distrib']
+            kl_loss = self.kl_normal(qm, qv, pm, pv)
+            kl_stat_loss = kl_loss.mean()
+            kl_loss = kl_stat_loss
+            # print(kl_loss.size())
+            stats_dict['kl_loss'] = kl_stat_loss
+            anneal_weight = 1.0
+            if self.use_kl_anneal or self.use_kl_cycle:
+                anneal_epoch = cur_epoch
+                anneal_start = self.kl_loss_anneal_start
+                anneal_end = self.kl_loss_anneal_end
+                if self.use_kl_cycle:
+                    anneal_epoch = cur_epoch % self.kl_loss_cycle_len
+                    anneal_start = 0
+                    anneal_end = self.kl_loss_cycle_len // 2 # optimize full weight for second half of cycle
+                if anneal_epoch >= anneal_start:
+                    anneal_weight = (anneal_epoch - anneal_start) / (anneal_end - anneal_start)
+                else:
+                    anneal_weight = 0.0
+                anneal_weight = 1.0 if anneal_weight > 1.0 else anneal_weight
 
-        #     loss = loss + anneal_weight*self.kl_loss_weight*kl_loss
+            loss = loss + anneal_weight*self.kl_loss_weight*kl_loss
 
-        #     stats_dict['kl_anneal_weight'] = anneal_weight
-        #     stats_dict['kl_weighted_loss'] = loss
+            stats_dict['kl_anneal_weight'] = anneal_weight
+            stats_dict['kl_weighted_loss'] = loss
 
         # 
         # Reconstruction 

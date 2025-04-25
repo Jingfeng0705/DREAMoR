@@ -99,7 +99,7 @@ def step(model, loss_func, data, dataset, device, cur_epoch, mode='train', use_g
 
 
 
-class HumorModel(nn.Module):
+class HumorDiffusion(nn.Module):
 
     def __init__(self,  diffusion_base_channels=64,
                         diffusion_embed_dim=256,
@@ -118,7 +118,7 @@ class HumorModel(nn.Module):
                         model_use_smpl_joint_inputs=False, # if true, uses smpl joints rather than regressed joints to input at next step (during rollout and sched samp)
                         model_smpl_batch_size=1 # if using smpl joint inputs this should be batch_size of the smpl model (aka data input to rollout)
                 ):
-        super(HumorModel, self).__init__()
+        super(HumorDiffusion, self).__init__()
         self.ignore_keys = []
 
         self.steps_in = steps_in
