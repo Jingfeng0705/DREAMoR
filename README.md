@@ -41,12 +41,10 @@ To clone a **private GitHub repo** from Colab, you’ll need to use a **Personal
 
 #### ✅ Store Token as a Colab Secret:
 
-In Colab, store the token securely like this:
+In Colab, store the token securely at left hand side panel:
 
-```python
-from google.colab import userdata
-userdata.set_secret("github_clone", "<your_token_here>")
-```
+![image](assets/secret.png)
+
 
 > Now, Colab can retrieve the token securely using `userdata.get("github_clone")`.
 
