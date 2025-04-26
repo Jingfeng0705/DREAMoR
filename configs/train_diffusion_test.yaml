@@ -1,30 +1,29 @@
 base:
   dataset: AmassDiscreteDataset
-  model: HumorModel
+  model: HumorDiffusion
   loss: HumorLoss
-  out: /content/drive/MyDrive/DiffuMoR/out/humor_train_test
+  out: ./out/humordiffusion_test
   gpu: 0
   batch_size: 200
   epochs: 200
   lr: 0.0001
   sched_milestones: [50, 80, 140]
   sched_decay: 0.5
-  sched_samp_start: 2
-  sched_samp_end: 12
+  sched_samp_start: 10
+  sched_samp_end: 20
   val_every: 2
   save_every: 25
   print_every: 10
 
 dataset:
   data_paths: 
-    - /content/datasets/AMASS/amass_processed
+    - ../datasets/AMASS/amass_processed
   split_by: sequence
   sample_num_frames: 10
   step_frames_in: 1
   step_frames_out: 1
   data_rot_rep: mat
   data_return_config: smpl+joints+contacts
-  deterministic_train: True
 
 model:
   model_data_config: smpl+joints+contacts
@@ -34,7 +33,7 @@ model:
   steps_in: 1
 
 loss:
-  kl_loss: 0.0004
+  kl_loss: 0.0
   kl_loss_anneal_start: 0
   kl_loss_anneal_end: 50
   contacts_loss: 0.01

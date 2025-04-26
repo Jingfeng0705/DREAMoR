@@ -17,7 +17,7 @@ base:
 
 dataset:
   data_paths: 
-    - /content/drive/MyDrive/DiffuMoR/datasets/AMASS/amass_processed
+    - /content/datasets/AMASS/amass_processed
   split_by: sequence
   sample_num_frames: 10
   step_frames_in: 1

@@ -16,8 +16,10 @@ from utils.config import TrainConfig
 from utils.logging import Logger, class_name_to_file_name, mkdir, cp_files
 from utils.torch import get_device, save_state, load_state
 from utils.stats import StatTracker
+from utils.config_new import ConfigParser
 
-NUM_WORKERS = 2
+from models.model_utils import step
+NUM_WORKERS = 4
 
 def parse_args(argv):
     # create config and parse args
@@ -27,7 +29,6 @@ def parse_args(argv):
     return known_args
 
 def train(args_obj, config_file):
-
     # set up output
     args = args_obj.base
     mkdir(args.out)
@@ -131,19 +132,17 @@ def train(args_obj, config_file):
                               batch_size=args.batch_size,
                               shuffle=True,
                               num_workers=NUM_WORKERS,
-                              pin_memory=True,
-                              worker_init_fn=lambda _: np.random.seed()) # get around pytorch RNG seed bug
+                              pin_memory=True)
     val_loader = DataLoader(val_dataset, 
                             batch_size=args.batch_size,
                             shuffle=False, 
                             num_workers=NUM_WORKERS,
-                            pin_memory=True,
-                            worker_init_fn=lambda _: np.random.seed())
+                            pin_memory=True)
 
     # stats tracker
     tensorboard_path = os.path.join(args.out, 'train_tensorboard')
     mkdir(tensorboard_path)
-    stat_tracker = StatTracker(tensorboard_path)
+    stat_tracker = StatTracker(tensorboard_path, train_log_path)
 
     # checkpoints saving
     ckpts_path = os.path.join(args.out, 'checkpoints')
@@ -195,7 +194,7 @@ def train(args_obj, config_file):
                 # zero the gradients
                 optimizer.zero_grad()
                 # run model
-                loss, stats_dict = model_class.step(model, loss_func, data, train_dataset, device, epoch, mode='train', use_gt_p=sched_samp_gt_p)
+                loss, stats_dict = step(model, loss_func, data, train_dataset, device, epoch, mode='train', use_gt_p=sched_samp_gt_p)
                 if torch.isnan(loss).item():
                     Logger.log('WARNING: NaN loss. Skipping to next data...')
                     torch.cuda.empty_cache()
@@ -270,7 +269,7 @@ def train(args_obj, config_file):
                     # print(i)
                     batch_start_t = time.time()
                     # run model
-                    loss, stats_dict = model_class.step(model, loss_func, data, val_dataset, device, epoch, mode='test', use_gt_p=sched_samp_gt_p)
+                    loss, stats_dict = step(model, loss_func, data, val_dataset, device, epoch, mode='test', use_gt_p=sched_samp_gt_p)
 
                     if torch.isnan(loss):
                         Logger.log('WARNING: NaN loss on VALIDATION. Skipping to next data...')
@@ -308,6 +307,10 @@ def main(args, config_file):
     train(args, config_file)
 
 if __name__=='__main__':
-    args = parse_args(sys.argv[1:])
+    # args = parse_args(sys.argv[1:])
     config_file = sys.argv[1:][0][1:]
+    yaml_config = config_file
+    config_file = yaml_config
+    config_parser_yaml = ConfigParser(yaml_config)
+    args, _ = config_parser_yaml.parse()
     main(args, config_file)
