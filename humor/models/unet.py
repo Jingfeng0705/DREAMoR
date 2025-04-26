@@ -71,6 +71,7 @@ class DownBlock(nn.Module):
         x = self.res1(x, emb)
         x = self.res2(x, emb)
         skip = x  # save for skip connection
+        # x: B, 64, 1
         x = self.downsample(x)
         return x, skip
 
@@ -143,7 +144,7 @@ class UNetConditional(nn.Module):
 
     def forward(self, x, cond, t):
         """
-        x: [B, in_channels, L] noisy latent at time t
+        x: [B, in_channels,] noisy latent at time t
         cond: [B, cond_dim] condition vector
         t: [B] time step indices
         """
@@ -157,7 +158,9 @@ class UNetConditional(nn.Module):
         emb = t_emb + c_emb                                          # [B, embed_dim]
 
         # U-Net forward
-        h = self.init_conv(x)
+        # x: [B, D]
+        x = x.unsqueeze(1)
+        h = self.init_conv(x) # h: [B, base_channels, D]
         # Downsample 
         skips = []
         for block in self.down_blocks:
@@ -171,4 +174,6 @@ class UNetConditional(nn.Module):
             skip = skips.pop()       # pop out last skip
             h = block(h, skip, emb)
         # Final conv to predict noise
-        return self.final_conv(h)
+        
+        h = self.final_conv(h) # h: [B, in_channels, D]
+        return h.squeeze()

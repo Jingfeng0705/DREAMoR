@@ -10,7 +10,7 @@ from body_model.utils import SMPL_JOINTS, SMPLH_PATH
 from body_model.body_model import BodyModel
 from datasets.amass_utils import data_name_list, data_dim
 
-from diffusion import create_diffusion
+from .diffusion import create_diffusion
 from .unet import UNetConditional
 
 IN_ROT_REPS = ['aa', '6d', 'mat']
@@ -26,77 +26,6 @@ NUM_BODY_JOINTS = NUM_SMPL_JOINTS - 1 # no root
 BETA_SIZE = 16
 
 WORLD2ALIGN_NAME_CACHE = {'root_orient' : None, 'trans' : None, 'joints' : None, 'verts' : None, 'joints_vel' : None, 'verts_vel' : None, 'trans_vel' : None, 'root_orient_vel' : None }
-
-
-def step(model, loss_func, data, dataset, device, cur_epoch, mode='train', use_gt_p=1.0):
-    '''
-    Given data for the current training step (batch),
-    pulls out the necessary needed data,
-    runs the model,
-    calculates and returns the loss.
-
-    - use_gt_p : the probability of using ground truth as input to each step rather than the model's own prediction
-                 (1.0 is fully supervised, 0.0 is fully autoregressive)
-    '''
-    use_sched_samp = use_gt_p < 1.0
-    batch_in, batch_out, meta = data
-
-    prep_data = model.prepare_input(batch_in, device, data_out=batch_out, return_input_dict=True, return_global_dict=use_sched_samp)
-    if use_sched_samp:
-        x_past, x_t, gt_dict, input_dict, global_gt_dict = prep_data
-    else:
-        x_past, x_t, gt_dict, input_dict = prep_data
-
-    B, T, S_in, _ = x_past.size()
-    S_out = x_t.size(2)
-
-    if not use_sched_samp:
-        # fully supervised phase
-        # start by using gt at every step, so just form all steps from all sequences into one large batch
-        #       and get per-step predictions
-        x_past_batched = x_past.reshape((B*T, S_in, -1))
-        x_t_batched = x_t.reshape((B*T, S_out, -1))
-        out_dict = model(x_past_batched, x_t_batched)
-    else:
-        # in scheduled sampling or fully autoregressive phase
-        init_input_dict = dict()
-        for k in input_dict.keys():
-            init_input_dict[k] = input_dict[k][:,0,:,:] # only need first step for init
-        # this out_dict is the global state
-        sched_samp_out = model.scheduled_sampling(x_past, x_t, init_input_dict, p=use_gt_p, 
-                                                                    gender=meta['gender'],
-                                                                    betas=meta['betas'].to(device),
-                                                                    need_global_out=(not model.detach_sched_samp))
-        if model.detach_sched_samp:
-            out_dict = sched_samp_out
-        else:
-            out_dict, _ = sched_samp_out
-        # gt must be global state for supervision in this case
-        if not model.detach_sched_samp:
-            print('USING global supervision')
-            gt_dict = global_gt_dict
-
-    # loss can be computed per output step in parallel
-    # batch dicts accordingly
-    for k in out_dict.keys():
-        if k == 'posterior_distrib' or k == 'prior_distrib':
-            m, v = out_dict[k]
-            m = m.reshape((B*T, -1))
-            v = v.reshape((B*T, -1))
-            out_dict[k] = (m, v)
-        else:
-            out_dict[k] = out_dict[k].reshape((B*T*S_out, -1))
-    for k in gt_dict.keys():
-        gt_dict[k] = gt_dict[k].reshape((B*T*S_out, -1))
-
-    gender_in = np.broadcast_to(np.array(meta['gender']).reshape((B, 1, 1, 1)), (B, T, S_out, 1))
-    gender_in = gender_in.reshape((B*T*S_out, 1))
-    betas_in = meta['betas'].reshape((B, T, 1, -1)).expand((B, T, S_out, 16)).to(device)
-    betas_in = betas_in.reshape((B*T*S_out, 16))
-    loss, stats_dict = loss_func(out_dict, gt_dict, cur_epoch, gender=gender_in, betas=betas_in)
-
-    return loss, stats_dict
-
 
 
 class HumorDiffusion(nn.Module):
@@ -178,7 +107,8 @@ class HumorDiffusion(nn.Module):
         self.diffusion = create_diffusion(timestep_respacing="")
         channel_mults = [(2 ** i) for i in range(diffusion_num_layers)]
         self.diffusion_model = UNetConditional(
-            in_channels=self.latent_size,
+            # in_channels=self.latent_size,
+            in_channels=1,
             cond_dim=past_data_dim, # previous pose as condition, so pose dimension as condition dimension 
             base_channels=diffusion_base_channels, 
             channel_mults=channel_mults, 
@@ -217,7 +147,7 @@ class HumorDiffusion(nn.Module):
 
         # New decoder
         layer_list = [decoder_hidden_size] * (decoder_num_layers - 1)
-        layer_list = [self.latent_size] + layer_list + [self.output_data_dim]
+        layer_list = [self.latent_size + past_data_dim] + layer_list + [self.output_data_dim]
         self.decoder = MLP(layers=layer_list,
                             nonlinearity=nn.ReLU, 
                             use_gn=True,
@@ -399,8 +329,8 @@ class HumorDiffusion(nn.Module):
         '''
 
         B, _, D = x_past.size()
-        past_in = x_past.reshape((B, -1))
-        t_in = x_t.reshape((B, -1))
+        past_in = x_past.reshape((B, -1)) # B x 339
+        t_in = x_t.reshape((B, -1)) # B x 339
         
         x_pred_dict = self.single_step(past_in, t_in) # we pass in the difference, and the current gt pose
 
@@ -413,17 +343,19 @@ class HumorDiffusion(nn.Module):
         '''
         B = past_in.size(0)
         # ground truth z_t
-        encoder_in = torch.cat([past_in, t_in], axis=1)
+        encoder_in = torch.cat([past_in, t_in], axis=1) # B x 678
         z = self.encoder(encoder_in) # B * latent_size
 
-        noise = torch.randn_like(z) # B * latent_size
+        noise = torch.randn_like(z).to(z.device) # B * latent_size
         model_kwargs = dict(y=past_in) # pass in the condition
         
-        time = torch.randint(0, self.diffusion.num_timesteps, (B,))
+        time = torch.randint(0, self.diffusion.num_timesteps, (B,)).to(z.device) # B x 1
         # Discuss 2: calculate loss in latent space? Then how to train the decoder? Calculate two losses and backprop twice?
         # z_t_hat = self.diffusion.training_losses(self.diffusion_model, z_t, t_in, model_kwargs)
         z_noise = self.diffusion.q_sample(z, time, noise=noise)
-        z_hat = self.diffusion_model(z_noise, time, **model_kwargs)
+        # z_hat = self.diffusion_model(z_noise, time, **model_kwargs)
+        z_hat = self.diffusion_model(z_noise, past_in, time)
+        
     
         # decode to get next step
         decoder_out = self.decode(z_hat, past_in)
@@ -1224,4 +1156,4 @@ class MLP(nn.Module):
             if self.skip_input_idx is not None and i > 0 and isinstance(layer, nn.Linear):
                 x = torch.cat([x, skip_in], dim=1)
             x = layer(x)
-        return x
+        return x # B x D

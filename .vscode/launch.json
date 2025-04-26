@@ -20,6 +20,15 @@
             "console": "integratedTerminal",
             "args": ["@./configs/train_humor.cfg"],
             "pythonPath": "E:/newProgramFiles/tool/anaconda/envs/CS280/python.exe"
+        },
+        {
+            "name": "Python Debugger: Train Diffusion",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "e:/workspace/Motion/humor/humor/train/train_humor.py",
+            "console": "integratedTerminal",
+            "args": ["@./configs/train_diffusion_test.yaml"],
+            "pythonPath": "E:/newProgramFiles/tool/anaconda/envs/CS280/python.exe"
         }
     ]
 }
