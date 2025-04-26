@@ -99,11 +99,15 @@ def step(model, loss_func, data, dataset, device, cur_epoch, mode='train', use_g
 
 
 
-class HumorModel(nn.Module):
+class HumorDiffusion(nn.Module):
 
-    def __init__(self,  diffusion_cfg,
-                        encoder_cfg,
-                        decoder_cfg,
+    def __init__(self,  diffusion_base_channels=64,
+                        diffusion_embed_dim=256,
+                        diffusion_num_layers=4,
+                        encoder_hidden_size=1024,
+                        encoder_num_layers=4,
+                        decoder_hidden_size=1024,
+                        decoder_num_layers=4,
                         in_rot_rep='aa', 
                         out_rot_rep='aa',
                         latent_size=48,
@@ -114,7 +118,7 @@ class HumorModel(nn.Module):
                         model_use_smpl_joint_inputs=False, # if true, uses smpl joints rather than regressed joints to input at next step (during rollout and sched samp)
                         model_smpl_batch_size=1 # if using smpl joint inputs this should be batch_size of the smpl model (aka data input to rollout)
                 ):
-        super(HumorModel, self).__init__()
+        super(HumorDiffusion, self).__init__()
         self.ignore_keys = []
 
         self.steps_in = steps_in
@@ -133,9 +137,6 @@ class HumorModel(nn.Module):
         self.out_rot_rep = out_rot_rep
         self.in_rot_rep = in_rot_rep
 
-        self.diffusion_cfg = diffusion_cfg
-        self.encoder_cfg = encoder_cfg
-        self.decoder_cfg = decoder_cfg
 
         # ---------------------------- Input and Output Dimension Calculation ----------------------------
 
@@ -175,13 +176,13 @@ class HumorModel(nn.Module):
         # ----------------------------------- Diffusion Model -------------------------------------------
 
         self.diffusion = create_diffusion(timestep_respacing="")
-        channel_mults = [(2 ** i) for i in range(self.diffusion_cfg['num_layers'])]
+        channel_mults = [(2 ** i) for i in range(diffusion_num_layers)]
         self.diffusion_model = UNetConditional(
             in_channels=self.latent_size,
             cond_dim=past_data_dim, # previous pose as condition, so pose dimension as condition dimension 
-            base_channels=self.diffusion_cfg['base_channels'], 
+            base_channels=diffusion_base_channels, 
             channel_mults=channel_mults, 
-            embed_dim=self.diffusion_cfg['embed_dim']
+            embed_dim=diffusion_embed_dim
         )
 
         # --------------------------------- Encoder and Decoder ------------------------------------------
@@ -196,7 +197,7 @@ class HumorModel(nn.Module):
         #                    )
         
         # New encoder
-        layer_list = [self.encoder_cfg['hidden_size']] * (self.encoder_cfg['num_layers'] - 1)
+        layer_list = [encoder_hidden_size] * (encoder_num_layers - 1)
         layer_list = [past_data_dim + t_data_dim] + layer_list + [self.latent_size]
         self.encoder = MLP(layers=layer_list, # mu and sigma output
                             nonlinearity=nn.ReLU,
@@ -215,7 +216,7 @@ class HumorModel(nn.Module):
         #                    )
 
         # New decoder
-        layer_list = [self.decoder_cfg['hidden_size']] * (self.decoder_cfg['num_layers'] - 1)
+        layer_list = [decoder_hidden_size] * (decoder_num_layers - 1)
         layer_list = [self.latent_size] + layer_list + [self.output_data_dim]
         self.decoder = MLP(layers=layer_list,
                             nonlinearity=nn.ReLU, 

@@ -119,6 +119,9 @@ class HumorLoss(nn.Module):
         #
         # KL divergence
         #
+        # No prior and posteriot, so no KL loss
+        
+        #NOTE: set `kl_loss=0` in config to disable KL loss
         if self.kl_loss_weight > 0.0:
             qm, qv = pred_dict['posterior_distrib']
             pm, pv = pred_dict['prior_distrib']

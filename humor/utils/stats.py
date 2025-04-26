@@ -77,11 +77,13 @@ class StatTracker(object):
     This includes a running mean and tensorboard visualization output.
     '''
 
-    def __init__(self, out_dir):
+    def __init__(self, out_dir, logger_path=None):
         self.writer = SummaryWriter(out_dir)
         self.step = 0
         self.meter_dict = dict()
         self.vector_meter_dict = dict()
+        if logger_path is not None:
+            self.logger_path = logger_path
 
     def reset(self):
         # keep global track for tensorboard but only per-epoch for meter_dict
@@ -148,6 +150,10 @@ class StatTracker(object):
 
     def print(self, cur_batch_idx, num_batches, cur_epoch_idx, num_epochs, total_elapsed_time=None, tag='train'):
         # print the progress bar with estimated time
+        
+        if self.logger_path is not None:
+            Logger.init(self.logger_path)
+            
         done = int(50 * (cur_batch_idx+1) / num_batches)
         progress_str = '[{}>{}] {} epoch - {}/{} | batch - {}/{}'.format('=' * done, '-' * (50 - done), tag,
                                                                         cur_epoch_idx+1, num_epochs, 

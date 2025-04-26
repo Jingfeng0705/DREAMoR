@@ -26,7 +26,7 @@ class AmassDiscreteDataset(Dataset):
     '''
     def __init__(self, split='train', 
                        data_paths=None, 
-                       split_by='dataset',
+                       split_by='sequence',
                        splits_path=None,
                        train_frac=0.8, val_frac=0.1,
                        sample_num_frames=10,
@@ -62,6 +62,8 @@ class AmassDiscreteDataset(Dataset):
 
         if data_paths is None:
             raise Exception('Must provide data paths')
+        elif isinstance(data_paths, list):
+            data_paths = data_paths[0]
         self.data_roots = data_paths
         Logger.log('Loading data from' + str(self.data_roots))
 
@@ -143,7 +145,6 @@ class AmassDiscreteDataset(Dataset):
         elif self.split_by in ['sequence']:
             # collect directories of sub-datasets to use
             subject_dirs = []
-            
             for root, _, files in os.walk(self.data_roots):
                 for file in files:
                     if file.endswith('.npz'):
