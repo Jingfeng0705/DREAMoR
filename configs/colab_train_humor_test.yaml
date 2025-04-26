@@ -24,6 +24,7 @@ dataset:
   step_frames_out: 1
   data_rot_rep: mat
   data_return_config: smpl+joints+contacts
+  deterministic_train: True
 
 model:
   model_data_config: smpl+joints+contacts
