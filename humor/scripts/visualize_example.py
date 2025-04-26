@@ -1,126 +1,141 @@
 import os
 import numpy as np
 import torch
-import yaml
 import argparse
 import cv2
+
+from torch.utils.data import DataLoader
 from humor.datasets.amass_discrete_dataset import AmassDiscreteDataset
-from torch.utils.data import Dataset, DataLoader
 from humor.body_model.body_model import BodyModel
 from humor.utils.transforms import matrot2axisangle
 from humor.datasets.amass_utils import CONTACT_INDS, NUM_BODY_JOINTS
 from humor.viz.utils import viz_smpl_seq
 from humor.body_model.utils import SMPL_JOINTS
+from humor.utils.config_new import ConfigParser
 
-def load_config(config_path):
-    with open(config_path, "r") as file:
-        return yaml.safe_load(file)
-    
-def main(args):
-    
+def main(args, app_transform):
+    base_args = getattr(args, "base_dict")
+    dataset_args = getattr(args, "dataset_dict")
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    male_bm_path   = os.path.join(args.smplh_path, 'male/model.npz')
-    female_bm_path = os.path.join(args.smplh_path, 'female/model.npz')
 
-    slice_size = args.data_steps_in + args.data_steps_out
-    
-    male_bm = BodyModel(bm_path=male_bm_path, num_betas=16, batch_size=slice_size).to(device)
-    male_bm_world = BodyModel(bm_path=male_bm_path, num_betas=16, batch_size=args.sample_num_frames+1).to(device)
-    male_bm_global = BodyModel(bm_path=male_bm_path, num_betas=16, batch_size=args.sample_num_frames, use_vtx_selector=False).to(device)
+    male_bm_path = os.path.join('./body_models/smplh', 'male/model.npz')
+    female_bm_path = os.path.join('./body_models/smplh', 'female/model.npz')
 
-    female_bm = BodyModel(bm_path=female_bm_path, num_betas=16, batch_size=slice_size).to(device)
-    female_bm_world = BodyModel(bm_path=female_bm_path, num_betas=16, batch_size=args.sample_num_frames+1).to(device)
-    female_bm_global = BodyModel(bm_path=female_bm_path, num_betas=16, batch_size=args.sample_num_frames, use_vtx_selector=False).to(device)
+    slice_size = dataset_args['step_frames_in'] + dataset_args['step_frames_out']
 
+    # Body models
+    male_bm_global = BodyModel(bm_path=male_bm_path, num_betas=16, batch_size=dataset_args['sample_num_frames'], use_vtx_selector=False).to(device)
+    female_bm_global = BodyModel(bm_path=female_bm_path, num_betas=16, batch_size=dataset_args['sample_num_frames'], use_vtx_selector=False).to(device)
+
+    # Dataset and Loader
     dataset = AmassDiscreteDataset(
-        split='train',
-        data_paths=args.data_path,
-        split_by=args.split_by,
-        sample_num_frames=args.sample_num_frames,
-        step_frames_in=args.data_steps_in,
-        step_frames_out=args.data_steps_out,
-        data_rot_rep=args.data_rot_rep,
-        data_return_config=args.data_return_config,
+        split='test',
+        data_paths=dataset_args['data_paths'],
+        split_by=dataset_args['split_by'],
+        sample_num_frames=dataset_args['sample_num_frames'],
+        step_frames_in=dataset_args['step_frames_in'],
+        step_frames_out=dataset_args['step_frames_out'],
+        data_rot_rep=dataset_args['data_rot_rep'],
+        data_return_config=dataset_args['data_return_config'],
     )
 
     loader = DataLoader(dataset, 
-                        batch_size=1,
+                        batch_size=base_args.get('batch_size', 1),
                         shuffle=True,
                         num_workers=0,
                         pin_memory=True,
                         drop_last=False,
-                        worker_init_fn=lambda _: np.random.seed()) 
+                        worker_init_fn=lambda _: np.random.seed())
 
-    assert args.batch_size == 1, "Batch size be 1 for visualization"
-    data_in, data_out, meta = next(iter(loader))
+    batch = next(iter(loader))
+    data_in, data_out, meta = batch
+    breakpoint()
+    batch_size = data_in['trans'].shape[0]
+    print(f"Visualizing {batch_size} sequences...")
 
+    # Preparing data
     betas = meta['betas'].to(device)
 
-    root_orient = data_out['root_orient']
-    root_orient = matrot2axisangle(root_orient.numpy().reshape((args.batch_size, args.sample_num_frames, 9))).reshape((args.batch_size, args.sample_num_frames, 3))
+    root_orient = matrot2axisangle(data_out['root_orient'].numpy().reshape((batch_size, dataset_args['sample_num_frames'], 9))).reshape((batch_size, dataset_args['sample_num_frames'], 3))
     root_orient = torch.Tensor(root_orient).to(device)
 
-    pose_body = data_out['pose_body']
-    pose_body = matrot2axisangle(pose_body.numpy().reshape((args.batch_size* args.sample_num_frames, NUM_BODY_JOINTS, 9))).reshape((args.batch_size, args.sample_num_frames, NUM_BODY_JOINTS*3))
+    pose_body = matrot2axisangle(data_out['pose_body'].numpy().reshape((batch_size * dataset_args['sample_num_frames'], NUM_BODY_JOINTS, 9))).reshape((batch_size, dataset_args['sample_num_frames'], NUM_BODY_JOINTS * 3))
     pose_body = torch.Tensor(pose_body).to(device)
 
     trans = data_out['trans'].to(device)
     joints = data_out['joints'].to(device)
-    joints_vel = data_out['joints_vel'].to(device)
-    trans_vel = data_out['trans_vel'].to(device)
 
-
-    bm_global = male_bm_global if meta['gender'][0] == 'male' else female_bm_global
-    body = bm_global(pose_body=pose_body[0], 
-                    pose_hand=None, 
-                    betas=betas[0,0].reshape((1, -1)).expand((args.sample_num_frames, 16)), 
-                    root_orient=root_orient[0], 
-                    trans=trans[0].squeeze(1),)
-
-
-    viz_contacts = None
-    contacts = data_out['contacts'][0].squeeze(1)
-    viz_contacts = torch.zeros((args.batch_size, args.sample_num_frames, len(SMPL_JOINTS))).to(contacts)
+    contacts = data_out['contacts'].squeeze(2).to(device)
+    viz_contacts = torch.zeros((batch_size, dataset_args['sample_num_frames'], len(SMPL_JOINTS)), device=device)
     viz_contacts[:,:,CONTACT_INDS] = contacts
 
-        
-    viz_smpl_seq(body, imw=1080, imh=1080, fps=30,
-                render_body=True, render_joints=True, render_skeleton=False, render_ground=True,
-                contacts=viz_contacts[0],
-                joints_seq=joints[0], use_offscreen=True)
-    output_folder = f"./render_out"
-    # make a video with all the frames
-    assert(os.path.exists(output_folder)), f"Output folder {output_folder} does not exist"
-    frame_files = sorted(os.listdir(output_folder))
-    frames = []
-    for frame_file in frame_files:
-        if frame_file.endswith(".png"):
-            frame_path = os.path.join(output_folder, frame_file)
-            img = cv2.imread(frame_path)
-            frames.append(img)
-    
-    if frames != []:
+    # Output setup
+    output_folder = base_args['out']
+    input_folder = './render_out'
+
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+
+    for i in range(batch_size):
+        bm_global = male_bm_global if meta['gender'][i] == 'male' else female_bm_global
+
+        body = bm_global(
+            pose_body=pose_body[i],
+            pose_hand=None,
+            betas=betas[i,0].reshape((1, -1)).expand((dataset_args['sample_num_frames'], 16)),
+            root_orient=root_orient[i],
+            trans=trans[i].squeeze(1)
+        )
+
+        viz_smpl_seq(
+            body,
+            imw=1080, imh=1080, fps=30,
+            render_body=True,
+            render_joints=True,
+            render_skeleton=False,
+            render_ground=True,
+            contacts=viz_contacts[i],
+            joints_seq=joints[i],
+            use_offscreen=True
+        )
+
+        # Save video
+        save_video(input_folder, output_folder, f"video_{i}.mp4")
+
+    print(f"All videos saved to {output_folder}")
+
+
+def save_video(input_folder, output_folder, video_filename):
+    if not os.path.exists(input_folder):
+        raise FileNotFoundError(f"Input folder {input_folder} does not exist.")
+
+    frame_files = sorted([f for f in os.listdir(input_folder) if f.endswith(".png")])
+    frames = [cv2.imread(os.path.join(input_folder, f)) for f in frame_files]
+
+    if frames:
         height, width, _ = frames[0].shape
-        output_path = os.path.join(output_folder, "video.mp4")
+        output_path = os.path.join(output_folder, video_filename)
         out = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'mp4v'), 5, (width, height))
         for frame in frames:
             out.write(frame)
         out.release()
         print(f"Video saved to {output_path}")
 
+    # Clean up frames
+    for f in frame_files:
+        os.remove(os.path.join(input_folder, f))
+    if os.path.exists(input_folder):
+        os.rmdir(input_folder)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--config_path', type=str, default=None, help='Path to config file')
+    parser.add_argument('--app_transform', type=bool, default=False, help='Apply app transform')
     args = parser.parse_args()
-    config = load_config(args.config_path)
-    args.data_path = config['data_path']
-    args.split_by = config['split_by']
-    args.sample_num_frames = config['sample_num_frames']
-    args.data_steps_in = config['data_steps_in']
-    args.data_steps_out = config['data_steps_out']
-    args.data_rot_rep = config['data_rot_rep']
-    args.data_return_config = config['data_return_config']
-    args.batch_size = config['batch_size']
-    args.smplh_path = config['smplh_path']
-    main(args)
-    
+
+    config_parser = ConfigParser(args.config_path)
+    args_obj, _ = config_parser.parse('train')
+
+    main(args_obj, args.app_transform)
