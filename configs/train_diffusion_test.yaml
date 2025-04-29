@@ -6,7 +6,7 @@ base:
   gpu: 0
   batch_size: 200
   epochs: 200
-  lr: 0.0001
+  lr: 0.001
   sched_milestones: [50, 80, 140]
   sched_decay: 0.5
   sched_samp_start: 10
@@ -29,7 +29,7 @@ model:
   model_data_config: smpl+joints+contacts
   in_rot_rep: mat
   out_rot_rep: aa
-  latent_size: 48
+  latent_size: 128
   steps_in: 1
 
 loss:

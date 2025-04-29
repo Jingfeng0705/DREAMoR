@@ -50,7 +50,7 @@ def main(args, app_transform):
 
     batch = next(iter(loader))
     data_in, data_out, meta = batch
-    breakpoint()
+
     batch_size = data_in['trans'].shape[0]
     print(f"Visualizing {batch_size} sequences...")
 
@@ -87,17 +87,26 @@ def main(args, app_transform):
             root_orient=root_orient[i],
             trans=trans[i].squeeze(1)
         )
-
+        CAM_OFFSET = [0.0, 2.25, 0.9]
+        
         viz_smpl_seq(
             body,
-            imw=1080, imh=1080, fps=30,
+            imw=1280, imh=720, fps=30,
             render_body=True,
             render_joints=True,
             render_skeleton=False,
             render_ground=True,
             contacts=viz_contacts[i],
             joints_seq=joints[i],
-            use_offscreen=True
+            use_offscreen=True,
+            RGBA=True,
+            follow_camera=True,
+            cam_offset=CAM_OFFSET,
+            joint_color=[ 0.0, 1.0, 0.0 ],
+            point_color=[0.0, 0.0, 1.0],
+            skel_color=[0.5, 0.5, 0.5],
+            joint_rad=0.02,
+            point_rad=0.02
         )
 
         # Save video

@@ -1,0 +1,22 @@
+# ------------------------------------------------------------------
+# DATA & PATHS
+# ------------------------------------------------------------------
+data_root: ../data/                     # Folder that contains ground_truth/, imu_preprocessed/, etc.
+motion: 20230910/20230910_af_skateboard/freestyle1/gt_1_2971_3660.pkl
+object: skateboard                   # The object name (folder inside object_templates/)
+smpl_model_path: ./body_models/smplh/neutral/model.npz  # Full path to SMPL-H model
+save_dir: visualizations             # Where rendered PNGs & plots will be written
+overlay_frames: 400
+# ------------------------------------------------------------------
+# RENDERING
+# ------------------------------------------------------------------
+render_width: 1920                   # Must preserve 16:9 aspect (1920 × 1080, 1280 × 720, …)
+render_height: 1080
+num_betas: 16                        # #shape coefficients to load in BodyModel
+
+# ------------------------------------------------------------------
+# RUN-TIME SWITCHES
+# ------------------------------------------------------------------
+start: 0                             # First frame to process
+end: -1                              # Last frame (-1 → process to the file’s end)
+no_motion: false                     # true → skip mesh rendering

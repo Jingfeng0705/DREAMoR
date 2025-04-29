@@ -1,0 +1,27 @@
+base:
+  dataset: AmassDiscreteDataset
+  model: HumorDiffusion
+  loss: HumorLoss
+  out: ./out/visualization
+  gpu: 0
+  batch_size: 10
+  epochs: 200
+  lr: 0.001
+  sched_milestones: [50, 80, 140]
+  sched_decay: 0.5
+  sched_samp_start: 10
+  sched_samp_end: 20
+  val_every: 2
+  save_every: 25
+  print_every: 10
+
+dataset:
+  data_paths: 
+    - ../datasets/AMASS/amass_processed
+  split_by: sequence
+  sample_num_frames: 50
+  step_frames_in: 1
+  step_frames_out: 1
+  data_rot_rep: mat
+  data_return_config: smpl+joints+contacts
+
