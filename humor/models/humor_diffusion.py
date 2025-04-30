@@ -37,6 +37,7 @@ class HumorDiffusion(nn.Module):
                         encoder_num_layers=4,
                         decoder_hidden_size=1024,
                         decoder_num_layers=4,
+                        cfg_scale=4.0,
                         in_rot_rep='aa', 
                         out_rot_rep='aa',
                         latent_size=48,
@@ -104,7 +105,8 @@ class HumorDiffusion(nn.Module):
 
         # ----------------------------------- Diffusion Model -------------------------------------------
 
-        self.diffusion = create_diffusion(timestep_respacing="")
+        self.cfg_scale = cfg_scale
+        self.diffusion = create_diffusion(timestep_respacing="")  # default: 1000 steps, linear noise schedule
         channel_mults = [(2 ** i) for i in range(diffusion_num_layers)]
         self.diffusion_model = UNetConditional(
             # in_channels=self.latent_size,
@@ -356,7 +358,6 @@ class HumorDiffusion(nn.Module):
         # z_hat = self.diffusion_model(z_noise, time, **model_kwargs)
         z_hat = self.diffusion_model(z_noise, past_in, time)
         
-    
         # decode to get next step
         decoder_out = self.decode(z_hat, past_in)
         decoder_out = decoder_out.reshape((B, self.steps_out, -1)) # B x steps_out x D_out
@@ -736,6 +737,8 @@ class HumorDiffusion(nn.Module):
         Returns: 
         - x_pred - dict of (B x num_steps x D_out) for each value. Rotations are all matrices.
         '''
+        assert not return_prior, 'humor diffusion does not support return_prior!'
+
         J = len(SMPL_JOINTS)
         cur_input_dict = init_input_dict
 
@@ -795,7 +798,6 @@ class HumorDiffusion(nn.Module):
             trans2joint = -torch.cat([cur_input_dict['joints'][:,-1,:2], torch.zeros((B, 1)).to(x_past)], axis=1).reshape((B,1,1,3)) # same for whole sequence
         pred_local_seq = []
         pred_global_seq = []
-        prior_seq = []
         z_out_seq = []
         for t in range(num_steps):
             x_pred_dict = None
@@ -804,9 +806,6 @@ class HumorDiffusion(nn.Module):
             if z_seq is not None:
                 z_in = z_seq[:,t]
             sample_out = self.sample_step(past_in, use_mean=use_mean, z=z_in, return_prior=return_prior, return_z=return_z)
-            if return_prior:
-                prior_out = sample_out['prior']
-                prior_seq.append(prior_out)
             if return_z:
                 z_out = sample_out['z']
                 z_out_seq.append(z_out)
@@ -938,13 +937,8 @@ class HumorDiffusion(nn.Module):
         if return_z:
             z_out_seq = torch.stack(z_out_seq, dim=1)
             pred_seq_out['z'] = z_out_seq
-
-        if return_prior:
-            pm = torch.stack([prior_seq[i][0] for i in range(len(prior_seq))], axis=1)
-            pv = torch.stack([prior_seq[i][1] for i in range(len(prior_seq))], axis=1)
-            return pred_seq_out, (pm, pv)
-        else:   
-            return pred_seq_out
+ 
+        return pred_seq_out
 
 
     def sample_step(self, past_in, t_in=None, use_mean=False, z=None, return_z=False):
@@ -956,18 +950,27 @@ class HumorDiffusion(nn.Module):
         - decoder_out : (B x steps_out x D) output of the decoder for the immediate next step
         '''
         B = past_in.size(0)
-        noise = torch.randn((B, self.latent_size)) # B * latent_size
-        model_kwargs = dict(y=past_in) # pass in the condition
+        past_in = past_in.reshape((B, -1)) # B x 339
+        z_noise = torch.randn((B, self.z_dim)).to(past_in.device)
+        assert z_noise.shape[0] == past_in.shape[0], 'z noise batch size must match past_in batch size!'
 
-        # TODO: One step cfg-free guidance sampling
+        z_noise = torch.cat([z_noise, z_noise], 0) # duplicate for conditional and unconditional diffusion
+        past_in_null = past_in # TODO: Not sure here. What should be our null class? Here null class is the copy of real class, so actually no unconditional sampling
+        past_in = torch.cat([past_in, past_in_null], 0) # duplicate for conditional and unconditional diffusion
+        model_kwargs = dict(cond=past_in, cfg_scale=self.cfg_scale)
+        
+        z_hat = self.diffusion.p_sample_loop(
+            self.diffusion_model.forward_with_cfg, z_noise.shape, z,  clip_denoised=False, model_kwargs=model_kwargs, progress=True, device=past_in.device
+        )
+        z_hat, _ = z_hat.chunk(2, dim=0)  # Remove null class samples
 
         # decode to get next step
-        decoder_out = self.decode(z, past_in)
+        decoder_out = self.decode(z_hat, past_in)
         decoder_out = decoder_out.reshape((B, self.steps_out, -1)) # B x steps_out x D_out
 
         out_dict = {'decoder_out' : decoder_out}
         if return_z:
-            out_dict['z'] = z
+            out_dict['z'] = z_hat
         
         return out_dict
 
@@ -984,10 +987,7 @@ class HumorDiffusion(nn.Module):
         # used to compute output zero padding
         needed_future_steps = (self.steps_out-1)*self.out_step_size
         
-        prior_m_seq = []
-        prior_v_seq = []
-        post_m_seq = []
-        post_v_seq = []
+        latent_states = []
         pred_dict_seq = []
         B, T, _ = global_seq[list(global_seq.keys())[0]].size()
         J = len(SMPL_JOINTS)
@@ -1047,12 +1047,9 @@ class HumorDiffusion(nn.Module):
                 pred_dict_seq.append(x_pred_dict)
             else:
                 # perform inference
-                prior_z, posterior_z = self.infer(x_past, x_t)
+                z = self.infer(x_past, x_t)
                 # save z
-                prior_m_seq.append(prior_z[0])
-                prior_v_seq.append(prior_z[1])
-                post_m_seq.append(posterior_z[0])
-                post_v_seq.append(posterior_z[1])
+                latent_states.append(z)
 
         if full_forward_pass:
             # pred_dict_seq
@@ -1068,12 +1065,9 @@ class HumorDiffusion(nn.Module):
 
             return pred_seq_out
         else:
-            prior_m_seq = torch.stack(prior_m_seq, axis=1)
-            prior_v_seq = torch.stack(prior_v_seq, axis=1)
-            post_m_seq = torch.stack(post_m_seq, axis=1)
-            post_v_seq = torch.stack(post_v_seq, axis=1)
+            latent_states = torch.stack(latent_states, axis=1)
 
-            return (prior_m_seq, prior_v_seq), (post_m_seq, post_v_seq)
+            return latent_states
 
 
     def infer(self, x_past, x_t):
@@ -1093,10 +1087,8 @@ class HumorDiffusion(nn.Module):
         B, _, D = x_past.size()
         past_in = x_past.reshape((B, -1))
         t_in = x_t.reshape((B, -1))
-        
-        prior_z, posterior_z = self.infer_step(past_in, t_in)
 
-        return prior_z, posterior_z
+        return self.infer_step(past_in, t_in)
 
 
     def infer_step(self, past_in, t_in):
@@ -1105,19 +1097,9 @@ class HumorDiffusion(nn.Module):
         '''
         B = past_in.size(0)
         # use past and future to encode latent transition
-        qm, qv = self.posterior(past_in, t_in)
+        z = self.encoder(past_in, t_in)
 
-        # prior
-        pm, pv = None, None
-        if self.use_conditional_prior:
-            # predict prior based on past
-            pm, pv = self.prior(past_in)
-        else:
-            # use standard normal
-            pm, pv = torch.zeros_like(qm), torch.ones_like(qv)
-
-        return (pm, pv), (qm, qv)
-    
+        return z
 
 
 class MLP(nn.Module):

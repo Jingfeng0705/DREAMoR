@@ -177,3 +177,15 @@ class UNetConditional(nn.Module):
         
         h = self.final_conv(h) # h: [B, in_channels, D]
         return h.squeeze()
+
+
+    def forward_with_cfg(self, x, t, cond, cfg_scale):
+        half = x[: len(x) // 2]
+        combined = torch.cat([half, half], dim=0)
+        model_out = self.forward(combined, cond, t)
+        # Apply classifier-free guidance
+        eps, rest = model_out[:, :self.in_channels], model_out[:, self.in_channels:]
+        cond_eps, uncond_eps = torch.split(eps, len(eps) // 2, dim=0)
+        half_eps = uncond_eps + cfg_scale * (cond_eps - uncond_eps)
+        eps = torch.cat([half_eps, half_eps], dim=0)
+        return torch.cat([eps, rest], dim=1)
