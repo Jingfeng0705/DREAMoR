@@ -119,6 +119,17 @@ class ConfigParser:
                 'decoder_hidden_size':1024,
                 'decoder_num_layers':4,
             }
+        elif model == "MotionVAE":
+            self.default_model = {
+                'out_rot_rep': 'aa',
+                'in_rot_rep': 'mat',
+                'latent_size': 48,
+                'steps_in': 1,
+                'output_delta': True,
+                'model_data_config': 'smpl+joints+contacts',
+                'detach_sched_samp': True,
+                'model_use_smpl_joint_inputs': False
+            }
         else:
             self.default_model = {
                 'out_rot_rep': 'aa',

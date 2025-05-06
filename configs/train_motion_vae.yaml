@@ -1,0 +1,54 @@
+base:
+  dataset: AmassDiscreteDataset
+  model: MotionVAE
+  loss: HumorLoss
+  out: ./out/motion_vae
+  gpu: 0
+  batch_size: 200
+  epochs: 200
+  lr: 0.001
+  sched_milestones: [50, 80, 140]
+  sched_decay: 0.5
+  sched_samp_start: 150
+  sched_samp_end: 160
+  val_every: 2
+  save_every: 25
+  print_every: 10
+
+dataset:
+  data_paths: 
+    - ../datasets/AMASS/amass_processed
+  split_by: sequence
+  sample_num_frames: 10
+  step_frames_in: 1
+  step_frames_out: 1
+  data_rot_rep: mat
+  data_return_config: smpl+joints+contacts
+
+model:
+  model_data_config: smpl+joints+contacts
+  in_rot_rep: mat
+  out_rot_rep: aa
+  latent_size: 128
+  steps_in: 1
+
+loss:
+  kl_loss: 0.0004
+  kl_loss_anneal_start: 0
+  kl_loss_anneal_end: 50
+  contacts_loss: 0.01
+  contacts_vel_loss: 0.01
+  regr_trans_loss: 1.0
+  regr_trans_vel_loss: 1.0
+  regr_root_orient_loss: 1.0
+  regr_root_orient_vel_loss: 1.0
+  regr_pose_loss: 1.0
+  regr_pose_vel_loss: 1.0
+  regr_joint_loss: 1.0
+  regr_joint_vel_loss: 1.0
+  regr_joint_orient_vel_loss: 1.0
+  regr_vert_loss: 1.0
+  regr_vert_vel_loss: 1.0
+  smpl_joint_loss: 1.0
+  smpl_mesh_loss: 1.0
+  smpl_joint_consistency_loss: 1.0
