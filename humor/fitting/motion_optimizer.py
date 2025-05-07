@@ -247,7 +247,7 @@ class MotionOptimizer():
                 pred_data, _ = self.smpl_results(self.trans, self.root_orient, body_pose, self.betas)
                 # compute data losses only
                 loss, stats_dict = self.fitting_loss.root_fit(observed_data, pred_data)
-                log_cur_stats(stats_dict, loss, iter=i)
+                # log_cur_stats(stats_dict, loss, iter=i)
                 loss.backward()
                 return loss
 
@@ -299,7 +299,7 @@ class MotionOptimizer():
                 pred_data['betas'] = self.betas
                 # compute data losses and pose prior
                 loss, stats_dict = self.fitting_loss.smpl_fit(observed_data, pred_data, self.seq_len)
-                log_cur_stats(stats_dict, loss, iter=i)
+                # log_cur_stats(stats_dict, loss, iter=i)
                 loss.backward()
                 return loss
 
@@ -603,7 +603,7 @@ class MotionOptimizer():
                     # change it back
                     self.fitting_loss.loss_weights['rgb_overlap_consist'] = og_overlap_consist_weight
 
-                log_cur_stats(stats_dict, loss, iter=i)
+                # log_cur_stats(stats_dict, loss, iter=i)
                 loss.backward()
                 return loss
 
