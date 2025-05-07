@@ -45,6 +45,7 @@ class HumorDiffusionTransformer(nn.Module):
                         cfg_scale=4.0,
                         vae_ckpt=None, # path to the VAE checkpoint
                         vae_cfg=None, # path to the VAE config file
+                        use_mean_sample=False, # if true, uses the mean of the latent distribution rather than sampling from it
                         in_rot_rep='aa', 
                         out_rot_rep='aa',
                         steps_in=1,
@@ -127,6 +128,7 @@ class HumorDiffusionTransformer(nn.Module):
                                                     dropout=dropout)
 
         # --------------------------------- Encoder and Decoder ------------------------------------------
+        self.use_mean_sample = use_mean_sample
         motion_vae_cfg, _ = ConfigParser(vae_cfg).parse('train')
         
         vae_model_cfg = motion_vae_cfg.model_dict
@@ -312,7 +314,7 @@ class HumorDiffusionTransformer(nn.Module):
     def single_step(self, past_in, t_in):
         B = past_in.size(0)
         # ground truth z_t
-        z = self.motion_vae.encode(past_in, t_in) # B * latent_size
+        z = self.motion_vae.encode(past_in, t_in, self.use_mean_sample) # B * latent_size
 
         noise = torch.randn_like(z).to(z.device) # B * latent_size
         model_kwargs = dict(y=past_in) # pass in the condition
@@ -812,6 +814,6 @@ class HumorDiffusionTransformer(nn.Module):
         '''
         B = past_in.size(0)
         # use past and future to encode latent transition
-        z = self.motion_vae.encode(past_in, t_in)
+        z = self.motion_vae.encode(past_in, t_in, self.use_mean_sample)
 
         return z

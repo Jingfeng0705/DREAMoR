@@ -147,7 +147,8 @@ class ConfigParser:
                 'dim_feedforward' : 1024,
                 'dropout' : 0.1,
                 'cfg_scale' : 4.0,
-                'cond_drop_prob': 0.1
+                'cond_drop_prob': 0.1,
+                'use_mean_sample': True,
             }
         else:
             self.default_model = {

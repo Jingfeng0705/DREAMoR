@@ -4,10 +4,10 @@ base:
   loss: DiffusionLoss
   out: ./out/humordiffusiontransformer_train
   gpu: 0
-  batch_size: 200
+  batch_size: 64
   epochs: 200
-  lr: 0.001
-  sched_milestones: [10, 25, 40]
+  lr: 0.0001
+  sched_milestones: [20, 40, 80]
   sched_decay: 0.5
   sched_samp_start: -1
   sched_samp_end: -2
@@ -31,7 +31,7 @@ model:
   out_rot_rep: aa
   steps_in: 1
   latent_size: 128
-  pose_token_dim: 256
+  pose_token_dim: 64
   diffusion_base_dim: 256
   nhead: 4
   num_layers: 6
@@ -39,6 +39,7 @@ model:
   dropout: 0.1
   cfg_scale: 4.0
   cond_drop_prob: 0.1
+  use_mean_sample: True
 
 loss:
   ddpm: 1.0
