@@ -332,7 +332,7 @@ class MotionVAE(nn.Module):
         z = mu + eps*torch.sqrt(var)
         return z
     
-    def encode(self, past_in, t_in):
+    def encode(self, past_in, t_in, use_mean=False):
         '''
         Encodes the latent transition distribution using the past and future states.
 
@@ -345,6 +345,10 @@ class MotionVAE(nn.Module):
         '''
         mean, var = self.posterior(past_in, t_in)
         z = self.rsample(mean, var)
+        
+        if use_mean:
+            # use mean instead of sampling
+            z = mean
 
         return z
     def decode(self, z, past_in):

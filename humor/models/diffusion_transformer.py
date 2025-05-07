@@ -76,3 +76,31 @@ class DiffusionTransformer(nn.Module):
         latent_out = encoded[:, 0, :]  # [B, d_model] only output the latent token
 
         return self.output_proj(latent_out)  # [B, latent_dim]
+
+
+    def forward_with_cfg(self, z_noisy, x_prev, t, cfg_scale):
+        """
+        Perform classifier-free guidance inference.
+
+        Args:
+            model: TransformerLatentDenoiser
+            z_noisy: [B, latent_dim]
+            x_prev: [B, pose_dim]
+            t: [B] or scalar int
+            guidance_scale: float multiplier for guidance strength
+
+        Returns:
+            eps_cfg: [B, latent_dim] guided noise prediction
+        """
+        B = z_noisy.size(0)
+        device = z_noisy.device
+
+        # Conditioned prediction
+        eps_cond = self.forward(z_noisy, x_prev, t, cond_drop_mask=torch.zeros(B, dtype=torch.bool, device=device))
+
+        # Unconditioned prediction
+        eps_uncond = self.forward(z_noisy, x_prev, t, cond_drop_mask=torch.ones(B, dtype=torch.bool, device=device))
+
+        # Classifier-Free Guidance combination
+        eps_cfg = eps_uncond + cfg_scale * (eps_cond - eps_uncond)
+        return eps_cfg

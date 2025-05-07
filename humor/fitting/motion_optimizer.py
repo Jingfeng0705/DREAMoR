@@ -851,27 +851,13 @@ class MotionOptimizer():
             }
 
             infer_results = self.motion_prior.infer_global_seq(seq_dict, full_forward_pass=full_forward_pass)
-            if full_forward_pass:
-                # return both the given motion and the one from the forward pass
-                # make sure rotations are matrix
-                # NOTE: assumes seq_dict is same thing we want to compute loss on - need to change if multiple future steps.
-                if self.motion_prior.in_rot_rep != 'mat':
-                    seq_dict['trans'] = batch_rodrigues(root_orient.reshape(-1, 3)).reshape((B, T, 9))
-                    seq_dict['pose_body'] = batch_rodrigues(body_pose.reshape(-1, 3)).reshape((B, T, J_BODY*9))
-                # do not need initial step anymore since output will be T-1
-                for k, v in seq_dict.items():
-                    seq_dict[k] = v[:,1:]
-                for k in infer_results.keys():
-                    if k != 'posterior_distrib' and k != 'prior_distrib':
-                        infer_results[k] = infer_results[k][:, :, 0] # only want first output step
-                infer_results = (seq_dict, infer_results)
-            else:
-                prior_z, posterior_z = infer_results
-                infer_results = posterior_z[0] # mean of the approximate posterior
+            
+            prior_z, posterior_z = infer_results
+            infer_results = posterior_z[0] # mean of the approximate posterior
         else:
             raise NotImplementedError('Only smpl+joints motion prior configuration is supported!')
 
-        return infer_results
+        return infer_results # latent z
 
     def rollout_latent_motion(self, trans, root_orient, body_pose, betas, prior_opt_params, latent_motion,
                                     return_prior=False,
@@ -947,11 +933,8 @@ class MotionOptimizer():
                                                   canonicalize_input=canonicalize_input,
                                                   gender=[fit_gender]*B, betas=betas.reshape((B, 1, -1)))
 
-        pred_dict = prior_out = None
-        if return_prior:
-            pred_dict, prior_out = roll_output
-        else:
-            pred_dict = roll_output
+        pred_dict, prior_out = roll_output
+     
 
         out_dict = dict()
         if self.motion_prior.model_data_config in ['smpl+joints', 'smpl+joints+contacts']:
