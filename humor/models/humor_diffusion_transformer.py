@@ -41,6 +41,7 @@ class HumorDiffusionTransformer(nn.Module):
                         num_layers=6,
                         dim_feedforward=1024,
                         dropout=0.1,
+                        cond_drop_prob=0.1,
                         cfg_scale=4.0,
                         vae_ckpt=None, # path to the VAE checkpoint
                         vae_cfg=None, # path to the VAE config file
@@ -114,6 +115,7 @@ class HumorDiffusionTransformer(nn.Module):
         # ----------------------------------- Diffusion Model -------------------------------------------
 
         self.cfg_scale = cfg_scale
+        self.cond_drop_prob = cond_drop_prob
         self.diffusion = create_diffusion(timestep_respacing="")  # default: 1000 steps, linear noise schedule
         self.diffusion_model = DiffusionTransformer(latent_dim=latent_size,
                                                     pose_token_dim=pose_token_dim,
@@ -318,7 +320,10 @@ class HumorDiffusionTransformer(nn.Module):
         time = torch.randint(0, self.diffusion.num_timesteps, (B,)).to(z.device) # B x 1
         # Discuss 2: calculate loss in latent space? Then how to train the decoder? Calculate two losses and backprop twice?
         z_noise = self.diffusion.q_sample(z, time, noise=noise)
-        pred_noise = self.diffusion_model(z_noise, past_in, time) # B x latent_size
+        
+        cond_mask = self.sample_cond_drop_mask(B, drop_prob=self.cond_drop_prob, device=z.device) # B x 1
+        
+        pred_noise = self.diffusion_model(z_noise, past_in, time, cond_mask) # B x latent_size
         
         pred_dict = {
             'pred_noise' : pred_noise,
@@ -327,6 +332,13 @@ class HumorDiffusionTransformer(nn.Module):
             'noise' : noise, # B x latent_size
         }
         return pred_dict
+    
+    def sample_cond_drop_mask(self, batch_size, drop_prob=0.1, device='cuda'):
+        """
+        Generates a [B] boolean tensor indicating which samples to drop condition.
+        """
+        return (torch.rand(batch_size, device=device) < drop_prob)
+
 
 
     # def decode(self, z, past_in):

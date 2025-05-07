@@ -7,7 +7,7 @@ base:
   batch_size: 200
   epochs: 200
   lr: 0.001
-  sched_milestones: [50, 80, 140]
+  sched_milestones: [10, 25, 40]
   sched_decay: 0.5
   sched_samp_start: -1
   sched_samp_end: -2
@@ -38,6 +38,7 @@ model:
   dim_feedforward: 1024
   dropout: 0.1
   cfg_scale: 4.0
+  cond_drop_prob: 0.9
 
 loss:
   ddpm: 1.0
