@@ -686,7 +686,7 @@ class HumorDiffusionTransformer(nn.Module):
             z = self.motion_vae.rsample(torch.zeros_like((B, self.latent_size)), 
                                         torch.ones_like((B, self.latent_size)),)
 
-        t_index = 500 # TODO: get from sampling
+        t_index = torch.randint(100, 801, (1,), device=past_in.device).item()
         _, z_hat = self.diffusion_model.ddim_inference(z, past_in, t_index, T=1000, cfg_scale=self.cfg_scale)
 
         # decode to get next step
