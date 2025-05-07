@@ -130,6 +130,24 @@ class ConfigParser:
                 'detach_sched_samp': True,
                 'model_use_smpl_joint_inputs': False
             }
+        elif model == "HumorDiffusionTransformer":
+            self.default_model = {
+                'out_rot_rep': 'aa',
+                'in_rot_rep': 'mat',
+                'latent_size': 128,
+                'steps_in': 1,
+                'output_delta': True,
+                'model_data_config': 'smpl+joints+contacts',
+                'detach_sched_samp': True,
+                'model_use_smpl_joint_inputs': False,
+                'pose_token_dim': 256,
+                'diffusion_base_dim': 256,
+                'nhead' : 4,
+                'num_layers' : 6,
+                'dim_feedforward' : 1024,
+                'dropout' : 0.1,
+                'cfg_scale' : 4.0,
+            }
         else:
             self.default_model = {
                 'out_rot_rep': 'aa',
@@ -180,6 +198,10 @@ class ConfigParser:
                 'smpl_mesh_loss': 1.0,
                 'smpl_joint_consistency_loss': 1.0,
                 'smpl_vert_consistency_loss': 0.0
+            }
+        elif loss == "DiffusionLoss":
+            self.default_loss = {
+                'ddpm': 1.0
             }
         
             

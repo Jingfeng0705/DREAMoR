@@ -1,0 +1,43 @@
+base:
+  dataset: AmassDiscreteDataset
+  model: HumorDiffusionTransformer
+  loss: DiffusionLoss
+  out: ./out/humordiffusiontransformer_train
+  gpu: 0
+  batch_size: 200
+  epochs: 200
+  lr: 0.001
+  sched_milestones: [50, 80, 140]
+  sched_decay: 0.5
+  sched_samp_start: -1
+  sched_samp_end: -2
+  val_every: 2
+  save_every: 25
+  print_every: 10
+
+dataset:
+  data_paths: 
+    - ../datasets/AMASS/amass_processed
+  split_by: sequence
+  sample_num_frames: 10
+  step_frames_in: 1
+  step_frames_out: 1
+  data_rot_rep: mat
+  data_return_config: smpl+joints+contacts
+
+model:
+  model_data_config: smpl+joints+contacts
+  in_rot_rep: mat
+  out_rot_rep: aa
+  steps_in: 1
+  latent_size: 128
+  pose_token_dim: 256
+  diffusion_base_dim: 256
+  nhead: 4
+  num_layers: 6
+  dim_feedforward: 1024
+  dropout: 0.1
+  cfg_scale: 4.0
+
+loss:
+  ddpm: 1.0
