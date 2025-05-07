@@ -930,19 +930,16 @@ class HumorDiffusionTransformer(nn.Module):
         B = past_in.size(0)
 
         past_in = past_in.reshape((B, -1)) # B x 339
-        # if z is not None: # TODO: the init z_noise should come from z
-        #     z_noise = z + noise
+        
         z_noise = torch.randn((B, self.latent_size)).to(past_in.device)
         assert z_noise.shape[0] == past_in.shape[0], 'z noise batch size must match past_in batch size!'
-
-        model_kwargs = dict(cond=past_in, cfg_scale=self.cfg_scale)
-        
-        z_hat = self.diffusion.p_sample_loop(
-            self.diffusion_model.forward_with_cfg, z_noise.shape, None,  clip_denoised=False, model_kwargs=model_kwargs, progress=True, device=past_in.device
-        )
         
         if z is None:
-            z = z_hat # TODO: this should be the posterior, not the prior
+            z = self.motion_vae.rsample(torch.zeros_like((B, self.latent_size)), 
+                                        torch.ones_like((B, self.latent_size)),)
+
+        t_index = 500 # TODO: get from sampling
+        _, z_hat = self.diffusion_model.ddim_inference(z, past_in, t_index, T=1000, cfg_scale=self.cfg_scale)
 
         # decode to get next step
         decoder_out = self.motion_vae.decode(z, past_in)

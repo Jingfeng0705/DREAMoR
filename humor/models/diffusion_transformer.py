@@ -78,12 +78,11 @@ class DiffusionTransformer(nn.Module):
         return self.output_proj(latent_out)  # [B, latent_dim]
 
 
-    def forward_with_cfg(self, x, t, cond, cfg_scale):
+    def forward_with_cfg(self, z_noisy, t, x_prev, cfg_scale):
         """
         Perform classifier-free guidance inference.
 
         Args:
-            model: TransformerLatentDenoiser
             z_noisy: [B, latent_dim]
             x_prev: [B, pose_dim]
             t: [B] or scalar int
@@ -92,15 +91,48 @@ class DiffusionTransformer(nn.Module):
         Returns:
             eps_cfg: [B, latent_dim] guided noise prediction
         """
-        B = x.size(0)
-        device = x.device
+        B = z_noisy.size(0)
+        device = z_noisy.device
 
         # Conditioned prediction
-        eps_cond = self.forward(x, cond, t, cond_drop_mask=torch.zeros(B, dtype=torch.bool, device=device))
+        eps_cond = self.forward(z_noisy, x_prev, t, cond_drop_mask=torch.zeros(B, dtype=torch.bool, device=device))
 
         # Unconditioned prediction
-        eps_uncond = self.forward(x, cond, t, cond_drop_mask=torch.ones(B, dtype=torch.bool, device=device))
+        eps_uncond = self.forward(z_noisy, x_prev, t, cond_drop_mask=torch.ones(B, dtype=torch.bool, device=device))
 
         # Classifier-Free Guidance combination
         eps_cfg = eps_uncond + cfg_scale * (eps_cond - eps_uncond)
         return eps_cfg
+    
+    def ddim_inference(self, z_clean, x_prev, t_index, T, cfg_scale):
+        """
+        Perform one DDIM-style denoising step for SDS-style optimization.
+
+        Args:
+            z_clean: [B, latent_dim] clean latent to be noised and denoised
+            t_index: int (e.g., t = 800) timestep index in diffusion schedule
+        Returns:
+            z_t: noised latent at step t
+            z_0_hat: denoised output from model
+        """
+        # TODO: should this be only one step denoise?
+        B, latent_dim = z_clean.shape
+        device = z_clean.device
+
+        # Schedule
+        betas = torch.linspace(1e-4, 0.02, T, device=device)
+        alphas = 1. - betas
+        alpha_bars = torch.cumprod(alphas, dim=0)
+
+        alpha_bar_t = alpha_bars[t_index].view(1, 1).expand(B, 1)
+        sqrt_alpha_bar = alpha_bar_t.sqrt()
+        sqrt_one_minus_alpha_bar = (1 - alpha_bar_t).sqrt()
+
+        eps = torch.randn_like(z_clean)
+        z_t = sqrt_alpha_bar * z_clean + sqrt_one_minus_alpha_bar * eps
+
+        t = torch.full((B,), t_index, dtype=torch.float32, device=device)
+        eps_pred = self.forward_with_cfg(z_t, t, x_prev, cfg_scale=cfg_scale)
+
+        z_0_hat = (z_t - sqrt_one_minus_alpha_bar * eps_pred) / sqrt_alpha_bar
+        return z_t, z_0_hat
