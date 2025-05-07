@@ -78,7 +78,7 @@ class DiffusionTransformer(nn.Module):
         return self.output_proj(latent_out)  # [B, latent_dim]
 
 
-    def forward_with_cfg(self, z_noisy, x_prev, t, cfg_scale):
+    def forward_with_cfg(self, x, t, cond, cfg_scale):
         """
         Perform classifier-free guidance inference.
 
@@ -92,14 +92,14 @@ class DiffusionTransformer(nn.Module):
         Returns:
             eps_cfg: [B, latent_dim] guided noise prediction
         """
-        B = z_noisy.size(0)
-        device = z_noisy.device
+        B = x.size(0)
+        device = x.device
 
         # Conditioned prediction
-        eps_cond = self.forward(z_noisy, x_prev, t, cond_drop_mask=torch.zeros(B, dtype=torch.bool, device=device))
+        eps_cond = self.forward(x, cond, t, cond_drop_mask=torch.zeros(B, dtype=torch.bool, device=device))
 
         # Unconditioned prediction
-        eps_uncond = self.forward(z_noisy, x_prev, t, cond_drop_mask=torch.ones(B, dtype=torch.bool, device=device))
+        eps_uncond = self.forward(x, cond, t, cond_drop_mask=torch.ones(B, dtype=torch.bool, device=device))
 
         # Classifier-Free Guidance combination
         eps_cfg = eps_uncond + cfg_scale * (eps_cond - eps_uncond)
