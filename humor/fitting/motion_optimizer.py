@@ -89,7 +89,7 @@ class MotionOptimizer():
         if self.motion_prior is not None:
             # need latent dynamics sequence as well
             self.latent_motion_dim = self.motion_prior.latent_size
-            self.cond_prior = self.motion_prior.use_conditional_prior
+            self.cond_prior = True
             # additional optimization params to set later
             self.trans_vel = None
             self.root_orient_vel = None
@@ -852,8 +852,8 @@ class MotionOptimizer():
 
             infer_results = self.motion_prior.infer_global_seq(seq_dict, full_forward_pass=full_forward_pass)
             
-            prior_z, posterior_z = infer_results
-            infer_results = posterior_z[0] # mean of the approximate posterior
+            # prior_z, posterior_z = infer_results
+            # infer_results = posterior_z[0] # mean of the approximate posterior
         else:
             raise NotImplementedError('Only smpl+joints motion prior configuration is supported!')
 
@@ -932,8 +932,11 @@ class MotionOptimizer():
                                                   return_z=is_sampling,
                                                   canonicalize_input=canonicalize_input,
                                                   gender=[fit_gender]*B, betas=betas.reshape((B, 1, -1)))
-
-        pred_dict, prior_out = roll_output
+        if return_prior:
+            pred_dict, prior_out = roll_output
+        else:
+            pred_dict = roll_output
+            prior_out = None
      
 
         out_dict = dict()
