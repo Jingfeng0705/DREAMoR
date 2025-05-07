@@ -266,7 +266,11 @@ def main(args, config_file):
     fit_errs = dict()
     prev_batch_overlap_res_dict = None
     use_overlap_loss = sum(loss_weights['rgb_overlap_consist']) > 0.0
+    
+    skip_chunk = 172
     for i, data in enumerate(data_loader):
+        if (i % skip_chunk) != 0:
+            continue
         start_t = time.time()
         # these dicts have different data depending on modality
         # MUST have at least name
