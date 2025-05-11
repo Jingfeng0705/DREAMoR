@@ -85,7 +85,101 @@ class ConfigParser:
                 'viz_smpl_joints': False,      # SMPL joints are visualized
             }
             
-        
+        elif stage == "fit":
+            self.default_base = {
+                # General fitting options
+                'data_path': None,
+                'data_type': 'AMASS',
+                'data_fps': 30,
+                'batch_size': 1,
+                'shuffle': False,
+                'op_keypts': None,
+
+                # AMASS
+                'amass_split_by': 'sequence',
+                'amass_custom_split': None,
+                'amass_batch_size': -1,
+                'amass_seq_len': 60,
+                'amass_use_joints': False,
+                'amass_root_joint_only': False,
+                'amass_use_verts': False,
+                'amass_use_points': False,
+                'amass_noise_std': 0.0,
+                'amass_make_partial': False,
+                'amass_partial_height': 0.9,
+                'amass_drop_middle': False,
+
+                # PROX
+                'prox_batch_size': -1,
+                'prox_seq_len': 60,
+                'prox_recording': None,
+                'prox_recording_subseq_idx': -1,
+
+                # iMapper
+                'imapper_seq_len': 60,
+                'imapper_scene': None,
+                'imapper_scene_subseq_idx': -1,
+
+                # RGB
+                'rgb_seq_len': None,
+                'rgb_overlap_len': None,
+                'rgb_intrinsics': None,
+                'rgb_planercnn_res': None,
+                'rgb_overlap_consist_weight': [0.0, 0.0, 0.0],
+
+                # Common options
+                'mask_joints2d': False,
+
+                # Loss weights
+                'joint3d_weight': [0.0, 0.0, 0.0],
+                'joint3d_rollout_weight': [0.0, 0.0, 0.0],
+                'joint3d_smooth_weight': [0.0, 0.0, 0.0],
+                'vert3d_weight': [0.0, 0.0, 0.0],
+                'point3d_weight': [0.0, 0.0, 0.0],
+                'joint2d_weight': [0.0, 0.0, 0.0],
+                'pose_prior_weight': [0.0, 0.0, 0.0],
+                'shape_prior_weight': [0.0, 0.0, 0.0],
+                'motion_prior_weight': [0.0, 0.0, 0.0],
+                'init_motion_prior_weight': [0.0, 0.0, 0.0],
+                'joint_consistency_weight': [0.0, 0.0, 0.0],
+                'bone_length_weight': [0.0, 0.0, 0.0],
+                'contact_vel_weight': [0.0, 0.0, 0.0],
+                'contact_height_weight': [0.0, 0.0, 0.0],
+                'floor_reg_weight': [0.0, 0.0, 0.0],
+                'robust_loss': 'bisquare',
+                'robust_tuning_const': 4.6851,
+                'joint2d_sigma': 100.0,
+
+                # Stage 3 control
+                'stage3_tune_init_state': True,
+                'stage3_tune_init_num_frames': 15,
+                'stage3_tune_init_freeze_start': 30,
+                'stage3_tune_init_freeze_end': 55,
+                'stage3_contact_refine_only': True,
+
+                # Model & optimization
+                'smpl': './body_models/smplh/neutral/model.npz',
+                'gt_body_type': 'smplh',
+                'vposer': './body_models/vposer_v1_0',
+                'openpose': './external/openpose',
+                'humor': None,
+                'humor_out_rot_rep': 'aa',
+                'humor_in_rot_rep': 'mat',
+                'humor_latent_size': 48,
+                'humor_model_data_config': 'smpl+joints+contacts',
+                'humor_steps_in': 1,
+                'init_motion_prior': './checkpoints/init_state_prior_gmm',
+
+                'lr': 1.0,
+                'num_iters': [30, 80, 70],
+                'lbfgs_max_iter': 20,
+
+                # Save options
+                'out': None,
+                'save_results': False,
+                'save_stages_results': False
+            }
+            
         if model == "HumorModel":
             self.default_model = {
                 'out_rot_rep': 'aa',
@@ -281,33 +375,37 @@ class ConfigParser:
         base_config = self._merge_with_defaults(base_config, self.default_base)
         base_args = SimpleNamespace(**base_config)
         
-        # Require some parameters
-        if base_args.dataset is None:
-            raise ValueError("Required parameter 'dataset' not provided in config")
-        if base_args.model is None:
-            raise ValueError("Required parameter 'model' not provided in config")
-        
-        # Load model config
-        model_data = self._load_subconfig('model')
-        model_data = self._merge_with_defaults(model_data, self.default_model)
-        model_config = SimpleNamespace(**model_data)
-        
-        # Load dataset config
-        dataset_data = self._load_subconfig('dataset')
-        dataset_data = self._merge_with_defaults(dataset_data, self.default_dataset)
-        
-        # Require data_paths for dataset
-        if dataset_data['data_paths'] is None:
-            raise ValueError("Required parameter 'data_paths' not provided in dataset config")
+        model_config, dataset_config, loss_config = None, None, None
+        if stage == "train":
+            # Require some parameters
+            if base_args.dataset is None:
+                raise ValueError("Required parameter 'dataset' not provided in config")
+            if base_args.model is None:
+                raise ValueError("Required parameter 'model' not provided in config")
             
-        dataset_config = SimpleNamespace(**dataset_data)
+            # Load model config
+            if base_args.model is not None:
+                model_data = self._load_subconfig('model')
+                model_data = self._merge_with_defaults(model_data, self.default_model)
+                model_config = SimpleNamespace(**model_data)
+            
+            # Load dataset config
+            if base_args.dataset is not None:
+                dataset_data = self._load_subconfig('dataset')
+                dataset_data = self._merge_with_defaults(dataset_data, self.default_dataset)
+            
+                # Require data_paths for dataset
+                if dataset_data['data_paths'] is None:
+                    raise ValueError("Required parameter 'data_paths' not provided in dataset config")
                 
-        # Load loss config if specified
-        loss_config = None
-        if base_args.loss is not None:
-            loss_data = self._load_subconfig('loss')
-            loss_data = self._merge_with_defaults(loss_data, self.default_loss)
-            loss_config = SimpleNamespace(**loss_data)
+                dataset_config = SimpleNamespace(**dataset_data)
+                    
+            # Load loss config if specified
+            loss_config = None
+            if base_args.loss is not None:
+                loss_data = self._load_subconfig('loss')
+                loss_data = self._merge_with_defaults(loss_data, self.default_loss)
+                loss_config = SimpleNamespace(**loss_data)
         
         # Create Args object
         args = Args(base_args, model=model_config, dataset=dataset_config, loss=loss_config)

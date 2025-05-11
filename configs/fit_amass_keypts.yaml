@@ -1,0 +1,48 @@
+base:
+  # === Data and Model Paths ===
+  data_path: ./data/AMASS/amass_processed_test
+  data_type: AMASS
+  data_fps: 30
+
+  smpl: ./body_models/smplh/neutral/model.npz
+  init_motion_prior: ./checkpoints/init_state_prior_gmm
+  humor: ./checkpoints/humor/best_model.pth
+  out: ./out/amass_verts_upper_fitting
+
+  # === AMASS Options ===
+  amass_split_by: sequence
+  shuffle: true
+  amass_batch_size: 2
+  amass_seq_len: 60
+  amass_use_verts: true
+  amass_noise_std: 0.0
+  amass_make_partial: true
+  amass_partial_height: 0.9
+
+  # === Loss Weights ===
+  joint3d_weight: [0.0, 0.0, 0.0]
+  vert3d_weight: [1.0, 1.0, 1.0]
+  point3d_weight: [0.0, 0.0, 0.0]
+  pose_prior_weight: [0.0002, 0.0002, 0.0]
+  shape_prior_weight: [0.000167, 0.000167, 0.000167]
+  motion_prior_weight: [0.0, 0.0, 0.0005]
+  init_motion_prior_weight: [0.0, 0.0, 0.0005]
+  joint3d_smooth_weight: [0.1, 0.1, 0.0]
+  joint_consistency_weight: [0.0, 0.0, 1.0]
+  bone_length_weight: [0.0, 0.0, 10.0]
+  contact_vel_weight: [0.0, 0.0, 1.0]
+  contact_height_weight: [0.0, 0.0, 1.0]
+
+  # === Optimization ===
+  lr: 1.0
+  num_iters: [30, 70, 70]
+
+  # === Stage 3 Control ===
+  stage3_tune_init_num_frames: 15
+  stage3_tune_init_freeze_start: 30
+  stage3_tune_init_freeze_end: 55
+
+  # === Misc ===
+  gt_body_type: smplh
+  save_results: true
+  save_stages_results: true

@@ -31,6 +31,7 @@ from fitting.config import parse_args
 from fitting.fitting_utils import NSTAGES, DEFAULT_FOCAL_LEN, load_vposer, save_optim_result, save_rgb_stitched_result
 from fitting.motion_optimizer import MotionOptimizer
 from utils.video import video_to_images, run_openpose, run_deeplab_v3
+from utils.config_new import ConfigParser
 
 from body_model.body_model import BodyModel
 from body_model.utils import SMPLX_PATH, SMPLH_PATH
@@ -80,115 +81,6 @@ def main(args, config_file):
                                   split_by=args.amass_split_by,
                                   custom_split=args.amass_custom_split)
         data_fps = 30
-    elif args.data_type == 'PROX-RGB' or args.data_type == 'PROX-RGBD':
-        dataset = ProxDataset(args.data_path,
-                              quant=False,
-                              split='test',
-                              seq_len=args.prox_seq_len,
-                              load_depth=(args.data_type == 'PROX-RGBD'),
-                              max_pts=4096,
-                              load_img=False,
-                              recording=args.prox_recording,
-                              recording_subseq_idx=args.prox_recording_subseq_idx,
-                              return_fitting=True,
-                              load_scene_mesh=False,
-                              mask_color=True,
-                              mask_joints=args.mask_joints2d,
-                              return_mask=False,
-                              estimate_floor_plane=False, # don't want to use GT floor
-                              load_floor_plane=True, # use PlaneRCNN instead
-                              flip=True # must be flipped if load_floor_plane only need this to match the scene/PROXD fittings for comparison
-                            )
-        data_fps = 30
-        im_dim = (1920, 1080)
-    elif args.data_type == 'iMapper-RGB':
-        dataset = iMapperDataset(args.data_path,
-                                seq_len=args.imapper_seq_len,
-                                load_img=False,
-                                load_floor_plane=True,
-                                scene=args.imapper_scene,
-                                scene_subseq_idx=args.imapper_scene_subseq_idx,
-                                mask_joints=args.mask_joints2d
-                            )
-        data_fps = 30
-        im_dim = (1920, 1080)
-    elif args.data_type == 'RGB':
-        # preprocess video to info needed for optim
-        video_preprocess_path = os.path.join(args.out, 'rgb_preprocess')
-        img_folder = os.path.join(video_preprocess_path, 'raw_frames')
-        mask_out_path = None
-        if args.mask_joints2d:
-            mask_out_path = os.path.join(video_preprocess_path, 'masks')
-        op_out_path = os.path.join(video_preprocess_path, 'op_keypoints')
-
-        use_custom_keypts = args.op_keypts is not None
-
-        # if we already did preprocessing (ran same video before), skip it
-        if not os.path.exists(video_preprocess_path) or (not use_custom_keypts and not os.path.exists(op_out_path)):
-            mkdir(video_preprocess_path)
-            # video -> images (at 30 Hz) - save to new output directory
-            img_folder, _, img_shape = video_to_images(args.data_path,
-                                                            fps=30,
-                                                            img_folder=img_folder,
-                                                            return_info=True)
-            print(img_folder)
-            print(img_shape)
-
-            if not use_custom_keypts:
-                # OpenPose on images
-                op_frames_out = os.path.join(video_preprocess_path, 'op_frames')
-                run_openpose(args.openpose, img_folder,
-                            op_out_path,
-                            img_out=op_frames_out,
-                            video_out=os.path.join(video_preprocess_path, 'op_keypoints_overlay.mp4'))
-
-            # if desired segmentation mask on images
-            if args.mask_joints2d:
-                run_deeplab_v3(img_folder, img_shape[:2],
-                            mask_out_path,
-                            batch_size=4)
-        else:
-            print('Already pre-processed video, skipping pre-processing...')
-            import cv2
-            img_shape = cv2.imread(os.path.join(img_folder, '000001.png')).shape
-            if args.mask_joints2d and not os.path.exists(mask_out_path):
-                print('Could not find detected masks from previous pre-processing! Please delete rgb_preprocess directory and re-run!')
-                exit()
-
-        if use_custom_keypts:
-            assert os.path.exists(args.op_keypts), 'Could not find custom keypoints path %s!' % (args.op_keypts)
-            print('Using pre-detected OpenPose keypoints from %s...' % (args.op_keypts))
-            op_out_path = args.op_keypts
-
-        # read in intrinsics if given
-        cam_mat = None
-        if args.rgb_intrinsics is None:
-            cam_mat = np.array([[DEFAULT_FOCAL_LEN[0], 0.0, img_shape[1] / 2.],
-                                [0.0, DEFAULT_FOCAL_LEN[1], img_shape[0] / 2.],
-                                [0.0, 0.0, 1.0]])
-        else:
-            with open(args.rgb_intrinsics, 'r') as f:
-                intrins_data = json.load(f)
-            cam_mat = np.array(intrins_data)
-        
-        # Create dataset by splitting the video up into overlapping clips
-        vid_name = '.'.join(args.data_path.split('/')[-1].split('.')[:-1])
-        dataset = RGBVideoDataset(op_out_path,
-                                  cam_mat,
-                                  seq_len=args.rgb_seq_len,
-                                  overlap_len=args.rgb_overlap_len,
-                                  img_path=img_folder,
-                                  load_img=False,
-                                  masks_path=mask_out_path,
-                                  mask_joints=args.mask_joints2d,
-                                  planercnn_path=args.rgb_planercnn_res,
-                                  video_name=vid_name
-                                )
-
-        data_fps = 30
-        im_dim = tuple(img_shape[:-1][::-1])
-        rgb_img_folder = img_folder
-        rgb_vid_name = vid_name
     else:
         raise NotImplementedError('Fitting for arbitrary RGB-D videos is not yet implemented')
 
@@ -458,6 +350,8 @@ def main(args, config_file):
 
 
 if __name__=='__main__':
-    args = parse_args(sys.argv[1:])
-    config_file = sys.argv[1:][0][1:]
+    config_file = r'configs\fit_amass_keypts.yaml' 
+    parser = ConfigParser(config_file)
+    args_obj, _ = parser.parse('fit')
+    args = args_obj.base
     main(args, config_file)
