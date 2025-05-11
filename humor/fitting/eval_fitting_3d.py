@@ -81,7 +81,7 @@ def main(args):
     # collect results directories
     all_result_dirs = [os.path.join(args.results, f) for f in sorted(os.listdir(args.results)) if f[0] != '.']
     all_result_dirs = [f for f in all_result_dirs if os.path.isdir(f)]
-    # print(all_result_dirs)
+    print(all_result_dirs)
     if args.shuffle:
         random.seed(0)
         random.shuffle(all_result_dirs)
@@ -180,8 +180,11 @@ def main(args):
         # Quantitative evaluation
         #
         if args.run_quant_eval:
+            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 
             obs_path = os.path.join(result_dir, OBS_NAME + '.npz')
+            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+            print(obs_path)
             if not os.path.exists:
                 print('Could not find observed data for %s, using in quantitative eval...' % (seq_name))
             obs_dict = np.load(obs_path)

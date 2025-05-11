@@ -34,6 +34,7 @@ from utils.video import video_to_images, run_openpose, run_deeplab_v3
 
 from body_model.body_model import BodyModel
 from body_model.utils import SMPLX_PATH, SMPLH_PATH
+from models.humor_diffusion_transformer import HumorDiffusionTransformer
 
 def main(args, config_file):
     res_out_path = None
@@ -235,11 +236,30 @@ def main(args, config_file):
 
     motion_prior = None
     Logger.log('Loading motion prior from %s...' % (args.humor))
-    motion_prior = HumorModel(in_rot_rep=args.humor_in_rot_rep, 
-                                out_rot_rep=args.humor_out_rot_rep,
-                                latent_size=args.humor_latent_size,
-                                model_data_config=args.humor_model_data_config,
-                                steps_in=args.humor_steps_in)
+    # motion_prior = HumorModel(in_rot_rep=args.humor_in_rot_rep, 
+    #                             out_rot_rep=args.humor_out_rot_rep,
+    #                             latent_size=args.humor_latent_size,
+    #                             model_data_config=args.humor_model_data_config,
+    #                             steps_in=args.humor_steps_in)
+    vae_ckpt_path = r'checkpoints\motionvae\best_model.pth'
+    vae_cfg_path = r'checkpoints\motionvae\train_motion_vae.yaml'
+    motion_prior = HumorDiffusionTransformer(latent_size=128,
+                                             pose_token_dim=64,
+                                             diffusion_base_dim=256,
+                                             nhead=4,
+                                             num_layers=6,
+                                             dim_feedforward=1024,
+                                             dropout=0.1,
+                                             cond_drop_prob=0.1,
+                                             cfg_scale=4.0,
+                                             vae_ckpt=vae_ckpt_path,
+                                             vae_cfg=vae_cfg_path,
+                                             in_rot_rep='mat',
+                                             out_rot_rep='aa',
+                                             steps_in=1,
+                                             output_delta=True,
+                                             use_mean_sample=True
+                                             )
     motion_prior.to(device)
     load_state(args.humor, motion_prior, map_location=device)
     motion_prior.eval()

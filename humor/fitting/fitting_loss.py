@@ -407,9 +407,11 @@ class FittingLoss(nn.Module):
             loss = latent_motion_pred**2
             loss = torch.sum(loss)
         else:
-            pm, pv = cond_prior
-            loss = -self.log_normal(latent_motion_pred, pm, pv)
-            loss = torch.sum(loss)
+            pm = cond_prior
+            # loss = -self.log_normal(latent_motion_pred, pm, pv)
+            loss = self.l2_loss(latent_motion_pred, pm)
+            loss = torch.sum(loss, dim=-1)
+            loss = loss.squeeze(0)[0]
 
         return loss
 
