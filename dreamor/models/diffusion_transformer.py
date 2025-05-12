@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from humor.models.diffusion.pose_tokenizer import PoseTokenizer
+from dreamor.models.diffusion.pose_tokenizer import PoseTokenizer
 
 class DiffusionTransformer(nn.Module):
     def __init__(self, latent_dim, pose_token_dim, pose_dim_list, d_model=256, nhead=4, num_layers=6, dim_feedforward=1024, dropout=0.1):

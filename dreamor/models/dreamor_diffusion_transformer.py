@@ -8,9 +8,9 @@ from torch.distributions.normal import Normal
 from body_model.utils import SMPL_JOINTS, SMPLH_PATH
 from body_model.body_model import BodyModel
 from datasets.amass_utils import data_name_list, data_dim
-from humor.utils.config_new import ConfigParser
-from humor.utils.torch import load_state
-from humor.utils.transforms import convert_to_rotmat, compute_world2aligned_mat, rotation_matrix_to_angle_axis
+from dreamor.utils.config_new import ConfigParser
+from dreamor.utils.torch import load_state
+from dreamor.utils.transforms import convert_to_rotmat, compute_world2aligned_mat, rotation_matrix_to_angle_axis
 
 
 from .diffusion import create_diffusion

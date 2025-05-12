@@ -20,7 +20,7 @@ from pytorch3d.renderer import (
 )
 from pytorch3d.utils import cameras_from_opencv_projection
 
-from humor.body_model.body_model import BodyModel
+from dreamor.body_model.body_model import BodyModel
 
 # --------------------------------------------------------------------------------------
 # Configuration ------------------------------------------------------------------------

@@ -5,13 +5,13 @@ import argparse
 import cv2
 
 from torch.utils.data import DataLoader
-from humor.datasets.amass_discrete_dataset import AmassDiscreteDataset
-from humor.body_model.body_model import BodyModel
-from humor.utils.transforms import matrot2axisangle
-from humor.datasets.amass_utils import CONTACT_INDS, NUM_BODY_JOINTS
-from humor.viz.utils import viz_smpl_seq
-from humor.body_model.utils import SMPL_JOINTS
-from humor.utils.config_new import ConfigParser
+from dreamor.datasets.amass_discrete_dataset import AmassDiscreteDataset
+from dreamor.body_model.body_model import BodyModel
+from dreamor.utils.transforms import matrot2axisangle
+from dreamor.datasets.amass_utils import CONTACT_INDS, NUM_BODY_JOINTS
+from dreamor.viz.utils import viz_smpl_seq
+from dreamor.body_model.utils import SMPL_JOINTS
+from dreamor.utils.config_new import ConfigParser
 
 def main(args, app_transform):
     base_args = getattr(args, "base_dict")

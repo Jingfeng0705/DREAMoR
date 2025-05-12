@@ -20,12 +20,8 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 from utils.logging import Logger, cp_files
 
-from models.humor_model import HumorModel
 from datasets.amass_discrete_dataset import AmassDiscreteDataset
 from datasets.amass_fit_dataset import AMASSFitDataset
-from datasets.prox_dataset import ProxDataset
-from datasets.imapper_dataset import iMapperDataset
-from datasets.rgb_dataset import RGBVideoDataset
 from utils.torch import load_state
 from utils.logging import mkdir
 from fitting.config import parse_args
@@ -36,7 +32,7 @@ from utils.config_new import ConfigParser
 
 from body_model.body_model import BodyModel
 from body_model.utils import SMPLX_PATH, SMPLH_PATH
-from models.humor_diffusion_transformer import HumorDiffusionTransformer
+from dreamor.models.dreamor_diffusion_transformer import HumorDiffusionTransformer
 
 def main(args, config_file):
     res_out_path = None
