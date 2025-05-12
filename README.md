@@ -118,3 +118,11 @@ python dreamor/fitting/eval_fitting_3d.py --results ./out/your_experiment_name/r
 ```
 
 The most relevant quantitative results will be written to `eval_out/eval_quant/compare_mean.csv`.
+
+---
+
+## 5. Acknowledgements
+This code is based on the:
+- [HuMoR](https://github.com/davrempe/humor)
+
+Thanks to the authors for their work and for making their code available!!
