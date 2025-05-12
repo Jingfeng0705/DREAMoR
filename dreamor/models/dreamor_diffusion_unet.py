@@ -28,7 +28,7 @@ BETA_SIZE = 16
 WORLD2ALIGN_NAME_CACHE = {'root_orient' : None, 'trans' : None, 'joints' : None, 'verts' : None, 'joints_vel' : None, 'verts_vel' : None, 'trans_vel' : None, 'root_orient_vel' : None }
 
 
-class HumorDiffusion(nn.Module):
+class DreamorDiffusionUnet(nn.Module):
 
     def __init__(self,  diffusion_base_channels=64,
                         diffusion_embed_dim=256,
@@ -48,7 +48,7 @@ class HumorDiffusion(nn.Module):
                         model_use_smpl_joint_inputs=False, # if true, uses smpl joints rather than regressed joints to input at next step (during rollout and sched samp)
                         model_smpl_batch_size=1 # if using smpl joint inputs this should be batch_size of the smpl model (aka data input to rollout)
                 ):
-        super(HumorDiffusion, self).__init__()
+        super(DreamorDiffusionUnet, self).__init__()
         self.ignore_keys = []
 
         self.steps_in = steps_in
@@ -737,7 +737,7 @@ class HumorDiffusion(nn.Module):
         Returns: 
         - x_pred - dict of (B x num_steps x D_out) for each value. Rotations are all matrices.
         '''
-        assert not return_prior, 'humor diffusion does not support return_prior!'
+        assert not return_prior, 'Dreamor diffusion does not support return_prior!'
 
         J = len(SMPL_JOINTS)
         cur_input_dict = init_input_dict

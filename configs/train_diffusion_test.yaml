@@ -1,6 +1,6 @@
 base:
   dataset: AmassDiscreteDataset
-  model: HumorDiffusion
+  model: DreamorDiffusionUnet
   loss: HumorLoss
   out: ./out/humordiffusion_test
   gpu: 0

@@ -1,13 +1,13 @@
 base:
   dataset: AmassDiscreteDataset
-  model: HumorDiffusionTransformer
+  model: DreamorDiffusionTransformer
   loss: DiffusionLoss
-  out: ./out/humordiffusiontransformer_train
+  out: ./out/diffusiontransformer_train
   gpu: 0
-  batch_size: 64
+  batch_size: 128
   epochs: 200
-  lr: 0.0001
-  sched_milestones: [20, 40, 80]
+  lr: 0.001
+  sched_milestones: [70, 120, 170]
   sched_decay: 0.5
   sched_samp_start: -1
   sched_samp_end: -2

@@ -32,7 +32,7 @@ BETA_SIZE = 16
 WORLD2ALIGN_NAME_CACHE = {'root_orient' : None, 'trans' : None, 'joints' : None, 'verts' : None, 'joints_vel' : None, 'verts_vel' : None, 'trans_vel' : None, 'root_orient_vel' : None }
 
 
-class HumorDiffusionTransformer(nn.Module):
+class DreamorDiffusionTransformer(nn.Module):
 
     def __init__(self,  latent_size=48,
                         pose_token_dim=256,
@@ -56,7 +56,7 @@ class HumorDiffusionTransformer(nn.Module):
                         model_use_smpl_joint_inputs=False, # if true, uses smpl joints rather than regressed joints to input at next step (during rollout and sched samp)
                         model_smpl_batch_size=1 # if using smpl joint inputs this should be batch_size of the smpl model (aka data input to rollout)
                 ):
-        super(HumorDiffusionTransformer, self).__init__()
+        super(DreamorDiffusionTransformer, self).__init__()
         self.ignore_keys = []
         
         if vae_ckpt is None or vae_cfg is None:

@@ -1,6 +1,6 @@
 base:
   dataset: AmassDiscreteDataset
-  model: HumorDiffusion
+  model: DreamorDiffusionUnet
   loss: HumorLoss
   out: /content/drive/MyDrive/DiffuMoR/out/diffusion_train
   gpu: 0

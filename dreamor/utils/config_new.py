@@ -195,7 +195,7 @@ class ConfigParser:
                 'detach_sched_samp': True,
                 'model_use_smpl_joint_inputs': False
             }
-        elif model == "HumorDiffusion":
+        elif model == "DreamorDiffusionUnet":
             self.default_model = {
                 'out_rot_rep': 'aa',
                 'in_rot_rep': 'mat',
@@ -224,7 +224,7 @@ class ConfigParser:
                 'detach_sched_samp': True,
                 'model_use_smpl_joint_inputs': False
             }
-        elif model == "HumorDiffusionTransformer":
+        elif model == "DreamorDiffusionTransformer":
             self.default_model = {
                 'out_rot_rep': 'aa',
                 'in_rot_rep': 'mat',
