@@ -1,11 +1,3 @@
-'''
-Test-time optimization to fit to observations using HuMoR as a motion prior.
-
-This is a 3-stage optimization. Stages 1 & 2 are initialization that DON'T use the motion prior,
-and stage 3 is the main optimization that uses HuMoR.
-'''
-
-
 import sys, os
 cur_file_path = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(os.path.join(cur_file_path, '..'))
@@ -32,7 +24,7 @@ from utils.config_new import ConfigParser
 
 from body_model.body_model import BodyModel
 from body_model.utils import SMPLX_PATH, SMPLH_PATH
-from dreamor.models.dreamor_diffusion_transformer import HumorDiffusionTransformer
+from dreamor.models.dreamor_diffusion_transformer import DreamorDiffusionTransformer
 
 def main(args, config_file):
     res_out_path = None

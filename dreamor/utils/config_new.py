@@ -162,13 +162,6 @@ class ConfigParser:
                 'gt_body_type': 'smplh',
                 'vposer': './body_models/vposer_v1_0',
                 'openpose': './external/openpose',
-                'humor': None,
-                'humor_out_rot_rep': 'aa',
-                'humor_in_rot_rep': 'mat',
-                'humor_latent_size': 48,
-                'humor_model_data_config': 'smpl+joints+contacts',
-                'humor_steps_in': 1,
-                'init_motion_prior': './checkpoints/init_state_prior_gmm',
 
                 'lr': 1.0,
                 'num_iters': [30, 80, 70],
@@ -243,7 +236,7 @@ class ConfigParser:
                 'cfg_scale' : 4.0,
                 'cond_drop_prob': 0.1,
                 'use_mean_sample': True,
-                'ddim_steps': 100
+                'ddim_steps': 10
             }
         else:
             self.default_model = {
@@ -377,18 +370,19 @@ class ConfigParser:
         base_args = SimpleNamespace(**base_config)
         
         model_config, dataset_config, loss_config = None, None, None
+        if base_args.model is None:
+            raise ValueError("Required parameter 'model' not provided in config")
+        
+        # Load model config
+        if base_args.model is not None:
+            model_data = self._load_subconfig('model')
+            model_data = self._merge_with_defaults(model_data, self.default_model)
+            model_config = SimpleNamespace(**model_data)
+            
         if stage == "train":
             # Require some parameters
             if base_args.dataset is None:
                 raise ValueError("Required parameter 'dataset' not provided in config")
-            if base_args.model is None:
-                raise ValueError("Required parameter 'model' not provided in config")
-            
-            # Load model config
-            if base_args.model is not None:
-                model_data = self._load_subconfig('model')
-                model_data = self._merge_with_defaults(model_data, self.default_model)
-                model_config = SimpleNamespace(**model_data)
             
             # Load dataset config
             if base_args.dataset is not None:

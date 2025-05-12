@@ -205,11 +205,15 @@ class MotionOptimizer():
                   num_iter=[30, 70, 70],
                   lbfgs_max_iter=20,
                   stages_res_out=None,
-                  fit_gender='neutral'):
+                  fit_gender='neutral',
+                  fit_log_path=None):
 
         if len(num_iter) != 3:
             print('Must have num iters for 3 stages! But %d stages were given!' % (len(num_iter)))
             exit()
+            
+        if fit_log_path is not None:
+            Logger.init(fit_log_path)
 
         per_stage_outputs = {} # SMPL results after each stage
 
