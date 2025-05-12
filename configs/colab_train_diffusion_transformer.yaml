@@ -39,6 +39,7 @@ model:
   dropout: 0.1
   cfg_scale: 4.0
   cond_drop_prob: 0.1
+  use_mean_sample: true
 
 loss:
   ddpm: 1.0

@@ -6,14 +6,14 @@ base:
 
   smpl: ./body_models/smplh/neutral/model.npz
   init_motion_prior: ./checkpoints/init_state_prior_gmm
-  ckpt: ./out/humordiffusiontransformer_train/20250507_040645/checkpoints/best_model.pth
-  out: ./out/eval/128_full_stage3_ddimstep10_long_bestmodel
+  ckpt: ./out/humordiffusiontransformer_train/20250507_040645/checkpoints/best_train_model.pth
+  out: ./out/eval/128_skip3_diff_roll_out_ddimstep100
 
   # === AMASS Options ===
   amass_split_by: sequence
   shuffle: false
   amass_batch_size: 1
-  amass_seq_len: 300
+  amass_seq_len: 60
   amass_use_verts: true
   amass_noise_std: 0.0
   amass_make_partial: true
@@ -35,7 +35,7 @@ base:
 
   # === Optimization ===
   lr: 1.0
-  num_iters: [30, 70, 70]
+  num_iters: [30, 70, 0]
 
   # === Stage 3 Control ===
   stage3_tune_init_num_frames: 15

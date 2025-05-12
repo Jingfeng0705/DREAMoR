@@ -104,35 +104,117 @@ class DiffusionTransformer(nn.Module):
         eps_cfg = eps_uncond + cfg_scale * (eps_cond - eps_uncond)
         return eps_cfg
     
-    def ddim_inference(self, z_clean, x_prev, t_index, T, cfg_scale):
+    # def ddim_inference(self, z_clean, x_prev, t_index, T, cfg_scale, num_steps=1):
+    #     """
+    #     Perform multi-step DDIM-style denoising starting from timestep t_index.
+
+    #     Args:
+    #         z_clean: [B, latent_dim] clean latent to be noised and denoised
+    #         x_prev: Conditioning input
+    #         t_index: Starting timestep index (0 <= t_index < T)
+    #         T: Total number of diffusion timesteps
+    #         cfg_scale: Guidance scale
+    #         num_steps: Number of denoising steps to perform (from t_index towards 0)
+
+    #     Returns:
+    #         z_t: Final noised latent at step t_index - num_steps
+    #         z_0_hat: Final estimated clean latent
+    #     """
+    #     B, latent_dim = z_clean.shape
+    #     device = z_clean.device
+
+    #     # Diffusion schedule
+    #     betas = torch.linspace(1e-4, 0.02, T, device=device)
+    #     alphas = 1. - betas
+    #     alpha_bars = torch.cumprod(alphas, dim=0)
+
+    #     # Noise clean latent to current t_index
+    #     alpha_bar_t = alpha_bars[t_index].view(1, 1).expand(B, 1)
+    #     sqrt_alpha_bar = alpha_bar_t.sqrt()
+    #     sqrt_one_minus_alpha_bar = (1 - alpha_bar_t).sqrt()
+    #     eps = torch.randn_like(z_clean)
+    #     z_t = sqrt_alpha_bar * z_clean + sqrt_one_minus_alpha_bar * eps
+
+    #     # Iteratively denoise
+    #     for i in range(num_steps):
+    #         t = t_index - i
+    #         if t <= 0:
+    #             break
+
+    #         t_tensor = torch.full((B,), t, dtype=torch.float32, device=device)
+    #         alpha_bar_t = alpha_bars[t].view(B, 1)
+    #         sqrt_alpha_bar_t = alpha_bar_t.sqrt()
+    #         sqrt_one_minus_alpha_bar_t = (1 - alpha_bar_t).sqrt()
+
+    #         eps_pred = self.forward_with_cfg(z_t, t_tensor, x_prev, cfg_scale=cfg_scale)
+    #         z_0_hat = (z_t - sqrt_one_minus_alpha_bar_t * eps_pred) / sqrt_alpha_bar_t
+
+    #         # Predict z_t-1 using DDIM update (no noise since deterministic)
+    #         if t > 1:
+    #             alpha_bar_prev = alpha_bars[t - 1].view(B, 1)
+    #         else:
+    #             alpha_bar_prev = torch.ones_like(alpha_bar_t)
+
+    #         z_t = (
+    #             z_0_hat * alpha_bar_prev.sqrt() +
+    #             (1 - alpha_bar_prev).sqrt() * eps_pred
+    #         )
+
+    #     return z_t, z_0_hat
+
+    def ddim_inference(self, z_clean, x_prev, t_index, T, cfg_scale, num_steps=1):
         """
-        Perform one DDIM-style denoising step for SDS-style optimization.
+        Perform DDIM-style denoising from timestep t_index to t=0 in num_steps.
 
         Args:
-            z_clean: [B, latent_dim] clean latent to be noised and denoised
-            t_index: int (e.g., t = 800) timestep index in diffusion schedule
+            z_clean: [B, latent_dim] clean latent
+            x_prev: Conditioning input
+            t_index: Starting timestep (e.g., 999)
+            T: Total diffusion steps (e.g., 1000)
+            cfg_scale: Guidance scale
+            num_steps: Number of denoising steps
+
         Returns:
-            z_t: noised latent at step t
-            z_0_hat: denoised output from model
+            z_t: Final denoised latent at t=0
+            z_0_hat: Final predicted clean latent
         """
-        # TODO: should this be only one step denoise?
         B, latent_dim = z_clean.shape
         device = z_clean.device
 
-        # Schedule
+        # Define DDIM diffusion schedule
         betas = torch.linspace(1e-4, 0.02, T, device=device)
         alphas = 1. - betas
-        alpha_bars = torch.cumprod(alphas, dim=0)
+        alpha_bars = torch.cumprod(alphas, dim=0)  # [T]
 
-        alpha_bar_t = alpha_bars[t_index].view(1, 1).expand(B, 1)
-        sqrt_alpha_bar = alpha_bar_t.sqrt()
-        sqrt_one_minus_alpha_bar = (1 - alpha_bar_t).sqrt()
+        # Step schedule: e.g., [t_index, ..., 0] with num_steps steps
+        t_steps = torch.linspace(t_index, 0, steps=num_steps + 1, dtype=torch.long, device=device)  # includes t=0
+        t_steps = t_steps.round().long()  # Make sure t_steps are ints
 
+        # Initial noisy latent from z_clean
+        t_start = t_steps[0]
+        alpha_bar_start = alpha_bars[t_start].view(1, 1)
         eps = torch.randn_like(z_clean)
-        z_t = sqrt_alpha_bar * z_clean + sqrt_one_minus_alpha_bar * eps
+        z_t = alpha_bar_start.sqrt() * z_clean + (1 - alpha_bar_start).sqrt() * eps
 
-        t = torch.full((B,), t_index, dtype=torch.float32, device=device)
-        eps_pred = self.forward_with_cfg(z_t, t, x_prev, cfg_scale=cfg_scale)
+        # DDIM denoising loop
+        for i in range(num_steps):
+            t = t_steps[i]
+            t_prev = t_steps[i + 1]
 
-        z_0_hat = (z_t - sqrt_one_minus_alpha_bar * eps_pred) / sqrt_alpha_bar
+            t_tensor = torch.full((B,), t, dtype=torch.float32, device=device)
+            alpha_bar_t = alpha_bars[t].view(1, 1)
+            alpha_bar_prev = alpha_bars[t_prev].view(1, 1)
+
+            sqrt_alpha_bar_t = alpha_bar_t.sqrt()
+            sqrt_one_minus_alpha_bar_t = (1 - alpha_bar_t).sqrt()
+
+            # Predict noise
+            eps_pred = self.forward_with_cfg(z_t, t_tensor, x_prev, cfg_scale=cfg_scale)
+
+            # Estimate z_0
+            z_0_hat = (z_t - sqrt_one_minus_alpha_bar_t * eps_pred) / sqrt_alpha_bar_t
+
+            # Deterministic DDIM update
+            z_t = alpha_bar_prev.sqrt() * z_0_hat + (1 - alpha_bar_prev).sqrt() * eps_pred
+
         return z_t, z_0_hat

@@ -243,6 +243,7 @@ class ConfigParser:
                 'cfg_scale' : 4.0,
                 'cond_drop_prob': 0.1,
                 'use_mean_sample': True,
+                'ddim_steps': 100
             }
         else:
             self.default_model = {

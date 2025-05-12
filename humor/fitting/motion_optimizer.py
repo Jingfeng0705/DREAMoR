@@ -619,7 +619,8 @@ class MotionOptimizer():
                                                                             self.betas,
                                                                             prior_opt_params,
                                                                             self.latent_motion,
-                                                                            fit_gender=fit_gender)
+                                                                            fit_gender=fit_gender,
+                                                                            use_diffusion_pred_z=False,) # TODO
         body_pose = rollout_results['pose_body']
         self.latent_pose = self.pose2latent(body_pose)
         self.trans = cam_rollout_results['trans']
@@ -865,7 +866,8 @@ class MotionOptimizer():
                                     fit_gender='neutral',
                                     use_mean=False,
                                     num_steps=-1,
-                                    canonicalize_input=False):
+                                    canonicalize_input=False,
+                                    use_diffusion_pred_z=False):
         '''
         Given initial state SMPL parameters and additional prior inputs, rolls out the sequence
         using the encoded latent motion and the motion prior to obtain a full SMPL sequence.
@@ -931,7 +933,8 @@ class MotionOptimizer():
                                                   return_prior=return_prior,
                                                   return_z=is_sampling,
                                                   canonicalize_input=canonicalize_input,
-                                                  gender=[fit_gender]*B, betas=betas.reshape((B, 1, -1)))
+                                                  gender=[fit_gender]*B, betas=betas.reshape((B, 1, -1)),
+                                                  use_diffusion_pred_z=use_diffusion_pred_z,)
         if return_prior:
             pred_dict, prior_out = roll_output
         else:

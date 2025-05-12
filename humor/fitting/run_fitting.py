@@ -9,6 +9,7 @@ and stage 3 is the main optimization that uses HuMoR.
 import sys, os
 cur_file_path = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(os.path.join(cur_file_path, '..'))
+sys.path.append(os.path.join(cur_file_path, '..', '..'))
 
 import importlib, time, math, shutil, json
 import traceback
@@ -127,7 +128,7 @@ def main(args, config_file):
     pose_prior.eval()
 
     motion_prior = None
-    Logger.log('Loading motion prior from %s...' % (args.humor))
+    Logger.log('Loading motion prior from %s...' % (args.ckpt))
     # motion_prior = HumorModel(in_rot_rep=args.humor_in_rot_rep, 
     #                             out_rot_rep=args.humor_out_rot_rep,
     #                             latent_size=args.humor_latent_size,
@@ -135,7 +136,7 @@ def main(args, config_file):
     #                             steps_in=args.humor_steps_in)
     vae_ckpt_path = r'checkpoints\motionvae\best_model.pth'
     vae_cfg_path = r'checkpoints\motionvae\train_motion_vae.yaml'
-    motion_prior = HumorDiffusionTransformer(latent_size=128,
+    motion_prior = HumorDiffusionTransformer(latent_size=128, # TODO: adjust params
                                              pose_token_dim=64,
                                              diffusion_base_dim=256,
                                              nhead=4,
@@ -150,10 +151,11 @@ def main(args, config_file):
                                              out_rot_rep='aa',
                                              steps_in=1,
                                              output_delta=True,
-                                             use_mean_sample=True
+                                             use_mean_sample=True,
+                                             ddim_steps=10
                                              )
     motion_prior.to(device)
-    load_state(args.humor, motion_prior, map_location=device)
+    load_state(args.ckpt, motion_prior, map_location=device)
     motion_prior.eval()
 
     # load in prior on the initial motion state if given
@@ -187,6 +189,11 @@ def main(args, config_file):
         # these dicts have different data depending on modality
         # MUST have at least name
         observed_data, gt_data = data
+        
+        name = gt_data['name'][0]
+        if "DanceDB" not in name:
+            continue
+        Logger.log('Processing sequence %s' % (name))
         # both of these are a list of tuples, each list index is a frame and the tuple index is the seq within the batch
         obs_img_paths = None if 'img_paths' not in observed_data else observed_data['img_paths'] 
         obs_mask_paths = None if 'mask_paths' not in observed_data else observed_data['mask_paths']
@@ -370,8 +377,12 @@ def main(args, config_file):
 
 
 if __name__=='__main__':
-    config_file = r'configs\fit_amass_keypts.yaml' 
+    config_file = r'configs\fit_keypts_humor_diffusion_transformer.yaml' 
     parser = ConfigParser(config_file)
     args_obj, _ = parser.parse('fit')
     args = args_obj.base
+    
+    print('out_path:', args.out)
+    input('Press Enter to continue...')
+    
     main(args, config_file)

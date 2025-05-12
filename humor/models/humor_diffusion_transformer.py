@@ -45,7 +45,8 @@ class HumorDiffusionTransformer(nn.Module):
                         cfg_scale=4.0,
                         vae_ckpt=None, # path to the VAE checkpoint
                         vae_cfg=None, # path to the VAE config file
-                        use_mean_sample=False, # if true, uses the mean of the latent distribution rather than sampling from it
+                        use_mean_sample=True, # if true, uses the mean of the latent distribution rather than sampling from it
+                        ddim_steps=100, # number of diffusion steps
                         in_rot_rep='aa', 
                         out_rot_rep='aa',
                         steps_in=1,
@@ -116,6 +117,7 @@ class HumorDiffusionTransformer(nn.Module):
         # ----------------------------------- Diffusion Model -------------------------------------------
 
         self.cfg_scale = cfg_scale
+        self.ddim_steps = ddim_steps
         self.cond_drop_prob = cond_drop_prob
         self.diffusion = create_diffusion(timestep_respacing="")  # default: 1000 steps, linear noise schedule
         self.diffusion_model = DiffusionTransformer(latent_dim=latent_size,
@@ -436,7 +438,8 @@ class HumorDiffusionTransformer(nn.Module):
     def roll_out(self, x_past, init_input_dict, num_steps, use_mean=False, 
                     z_seq=None, return_prior=False, gender=None, betas=None, return_z=False,
                     canonicalize_input=False,
-                    uncanonicalize_output=False):
+                    uncanonicalize_output=False,
+                    use_diffusion_pred_z=False):
         '''
         Given input for first step, roll out using own output the entire time by sampling from the prior.
         Returns the global trajectory.
@@ -524,7 +527,7 @@ class HumorDiffusionTransformer(nn.Module):
             z_in = None
             if z_seq is not None:
                 z_in = z_seq[:,t]
-            sample_out = self.sample_step(past_in, use_mean=use_mean, z=z_in, return_prior=return_prior, return_z=return_z)
+            sample_out = self.sample_step(past_in, use_mean=use_mean, z=z_in, return_prior=return_prior, return_z=return_z, use_diffusion_pred_z=use_diffusion_pred_z)
             if return_prior:
                 prior_out = sample_out['prior']
                 prior_seq.append(prior_out)
@@ -667,7 +670,7 @@ class HumorDiffusionTransformer(nn.Module):
             return pred_seq_out
 
 
-    def sample_step(self, past_in, t_in=None, use_mean=False, z=None, return_prior=False, return_z=False):
+    def sample_step(self, past_in, t_in=None, use_mean=False, z=None, return_prior=False, return_z=False, use_diffusion_pred_z=False):
         '''
         Given past, samples next future state by sampling from prior or posterior and decoding.
         If z (B x D) is not None, uses the given z instead of sampling from posterior or prior
@@ -687,9 +690,11 @@ class HumorDiffusionTransformer(nn.Module):
                                         torch.ones_like((B, self.latent_size)),)
 
         t_index = torch.randint(100, 801, (1,), device=past_in.device).item()
-        _, z_hat = self.diffusion_model.ddim_inference(z, past_in, t_index, T=1000, cfg_scale=self.cfg_scale)
+        _, z_hat = self.diffusion_model.ddim_inference(z, past_in, t_index, T=1000, cfg_scale=self.cfg_scale, num_steps=self.ddim_steps)
 
         # decode to get next step
+        if use_diffusion_pred_z:
+            z = z_hat
         decoder_out = self.motion_vae.decode(z, past_in)
         decoder_out = decoder_out.reshape((B, self.steps_out, -1)) # B x steps_out x D_out
 

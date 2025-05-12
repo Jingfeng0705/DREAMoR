@@ -172,7 +172,7 @@ def viz_smpl_seq(body, imw=1080, imh=1080, fps=30, contacts=None,
         joints_vel = [c2c(joint_frame) for joint_frame in joints_vel]
     if points_vel is not None and torch.is_tensor(points_vel[0]):
         points_vel = [c2c(joint_frame) for joint_frame in points_vel]
-
+    from humor.viz.mesh_viewer import MeshViewer
     mv = MeshViewer(width=imw, height=imh,
                     use_offscreen=use_offscreen, 
                     follow_camera=follow_camera,
@@ -343,4 +343,4 @@ def viz_results(body_pred, body_gt, fps, viz_out_dir=None, base_name=None, conta
             shutil.rmtree(comparison_out_path)
 
 # avoid cyclic dependency
-from humor.viz.mesh_viewer import MeshViewer
+

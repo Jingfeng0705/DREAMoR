@@ -5,6 +5,8 @@ Viz and evaluation for 3D AMASS tasks.
 import sys, os
 cur_file_path = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(os.path.join(cur_file_path, '..'))
+sys.path.append(os.path.join(cur_file_path, '..', '..'))
+
 
 import csv, random
 
@@ -81,7 +83,9 @@ def main(args):
     # collect results directories
     all_result_dirs = [os.path.join(args.results, f) for f in sorted(os.listdir(args.results)) if f[0] != '.']
     all_result_dirs = [f for f in all_result_dirs if os.path.isdir(f)]
+    print('Found %d results directories...' % (len(all_result_dirs)))
     print(all_result_dirs)
+    print('-'*100)
     if args.shuffle:
         random.seed(0)
         random.shuffle(all_result_dirs)
@@ -180,11 +184,7 @@ def main(args):
         # Quantitative evaluation
         #
         if args.run_quant_eval:
-            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-
             obs_path = os.path.join(result_dir, OBS_NAME + '.npz')
-            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-            print(obs_path)
             if not os.path.exists:
                 print('Could not find observed data for %s, using in quantitative eval...' % (seq_name))
             obs_dict = np.load(obs_path)
